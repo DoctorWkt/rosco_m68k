@@ -1,8 +1,9 @@
 LICENSE AND COPYRIGHT:
 ---------------------
 
-Copyright ©2023 Ross Bamford, except files under musashi/, which are
-Copyright © 1998-2002 Karl Stenerud - see musashi/readme.txt for license.
+Copyright ©2023 Ross Bamford and Warren Toomey, except files under
+musashi/, which are Copyright © 1998-2002 Karl Stenerud - see
+musashi/readme.txt for license.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

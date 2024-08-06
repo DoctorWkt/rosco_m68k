@@ -62,6 +62,5 @@ $(DISASM) : $(ELF)
 	$(OBJDUMP) --disassemble -S $(ELF) >$(DISASM)
 
 clean:
-	$(RM) $(OBJECTS) $(BINARY) $(BINARY_ODD) $(BINARY_EVEN) $(MAP) $(BINARY_BASENAME)_mame.$(BINARY_EXT).bin
-
-
+	$(RM) $(OBJECTS) $(BINARY) $(BINARY_ODD) $(BINARY_EVEN) $(MAP) \
+	$(BINARY_BASENAME)_mame.$(BINARY_EXT).bin $(DISASM) $(SYM) $(ELF)

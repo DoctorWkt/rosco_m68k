@@ -201,6 +201,33 @@ int interrupt_ack_handler(unsigned int);
 */
 #define M68K_USE_64_BIT  OPT_ON
 
+#ifndef SIM__HEADER
+#define SIM__HEADER
+
+unsigned int cpu_read_byte(unsigned int address);
+unsigned int cpu_read_word(unsigned int address);
+unsigned int cpu_read_long(unsigned int address);
+void cpu_write_byte(unsigned int address, unsigned int value);
+void cpu_write_word(unsigned int address, unsigned int value);
+void cpu_write_long(unsigned int address, unsigned int value);
+void cpu_pulse_reset(void);
+void cpu_set_fc(unsigned int fc);
+int  cpu_irq_ack(int level);
+void cpu_instr_callback(int pc);
+
+#endif /* SIM__HEADER */
+
+#define m68k_read_memory_8(A) cpu_read_byte(A)
+#define m68k_read_memory_16(A) cpu_read_word(A)
+#define m68k_read_memory_32(A) cpu_read_long(A)
+
+#define m68k_read_disassembler_16(A) cpu_read_word_dasm(A)
+#define m68k_read_disassembler_32(A) cpu_read_long_dasm(A)
+
+#define m68k_write_memory_8(A, V) cpu_write_byte(A, V)
+#define m68k_write_memory_16(A, V) cpu_write_word(A, V)
+#define m68k_write_memory_32(A, V) cpu_write_long(A, V)
+
 
 #endif /* M68K_COMPILE_FOR_MAME */
 
