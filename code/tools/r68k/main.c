@@ -213,8 +213,33 @@ void set_timer() {
 
 // The periodic timer handler
 void timer_interrupt() {
+
   m68k_set_irq(DUART_IRQ);
   set_timer();
+}
+
+// Attach the timer_interrupt() to SIGALRM
+void attach_sigalrm() {
+  struct sigaction sa;
+
+  sa.sa_handler= timer_interrupt;
+  sa.sa_flags= 0;
+  sigemptyset(&(sa.sa_mask));
+  if (sigaction(SIGALRM, &sa, NULL)==-1) {
+    warn("Unable to attach a SIGALRM handler");
+  }
+}
+
+// Detach the timer_interrupt() from SIGALRM
+void detach_sigalrm() {
+  struct sigaction sa;
+
+  sa.sa_handler= SIG_IGN;
+  sa.sa_flags= 0;
+  sigemptyset(&(sa.sa_mask));
+  if (sigaction(SIGALRM, &sa, NULL)==-1) {
+    warn("Unable to ignore SIGALRMs");
+  }
 }
 
 // Disassembler
@@ -270,7 +295,6 @@ int main(int argc, char *argv[]) {
   unsigned int instr_size;
   char buff[100];
   char buff2[100];
-  struct sigaction sa;
 
   if (argc < 2) usage(argv[0]);
 
@@ -349,14 +373,9 @@ int main(int argc, char *argv[]) {
       m68ki_cpu.pc= pc;
   }
 
-  // Get timer_interrupt() to run
-  // when the timer expires
-  sa.sa_handler= timer_interrupt;
-  sa.sa_flags= 0;
-  sigemptyset(&(sa.sa_mask));
-  if (sigaction(SIGALRM, &sa, NULL)==-1) {
-    warn("Unable to set a SIGALRM");
-  }
+  // Attach the routine that handles
+  // the periodic timer interrupts
+  attach_sigalrm();
 
   // Start the timer running
   set_timer();

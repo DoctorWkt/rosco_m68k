@@ -12,6 +12,7 @@
 #include "musashi/m68k.h"
 #include "musashi/m68kcpu.h"
 #include "devices.h"
+#include "main.h"
 #include "loglevel.h"
 
 // Functions to deal with the DUART,
@@ -129,6 +130,9 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
       op &= 0x0F;
     }
 
+printf("op is %d d1 %d\n", op, d1);
+print_regs(stdout);
+
     uint8_t c;
     bool r;
     int i, ptr;
@@ -137,6 +141,7 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
     int num = 0;
     int gcount;
     uint8_t buf[512];
+    uint8_t row, col;
 
     fflush(stdout);
 
@@ -401,13 +406,16 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
       // Not implemented
 
     case 0xDB:
-      // MOVEXY
+      // MOVEXY: Yes I'm using ANSI escape sequences
+      // instead of using termcap or curses. Later ...
       if ((d1 & 0xFFFF) == 0xFF00) {
 	// clear screen
-	printf("\neasy68k CLRSCR 0xDB not implemented\n");
+	printf("\x1B[2J"); fflush(stdout);
       } else {
 	// Move X, Y
-	 printf("\neasy68k MOVE X,Y 0xDB not implemented\n");
+	row= d1 & 0xff;
+	col= (d1 >> 8) & 0xff;
+	 printf("\x1B[%d;%dH", row, col); fflush(stdout);
       }
 
       break;

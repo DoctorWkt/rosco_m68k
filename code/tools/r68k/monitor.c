@@ -26,8 +26,11 @@ static int disassemble_instruction(char *buf, int addr) {
 
 // Execute one instruction and get the
 // address of the following instruction.
+// We turn off timer handling as well.
 static int run_instruction(void) {
+  printf("PC %x\n", m68ki_cpu.pc);
   m68k_execute(1);
+  printf("PC %x\n", m68ki_cpu.pc);
   return (m68ki_cpu.pc);
 }
 
@@ -373,6 +376,9 @@ int monitor(int curpc) {
 
   reset_term();
 
+  // Turn off handling of the timer for now
+  detach_sigalrm();
+
   if (is_breakpoint(curpc, BRK_INST))
     printf("Stopped at $%04X\n", curpc);
 
@@ -384,6 +390,9 @@ int monitor(int curpc) {
 
     if (*cmd_str == '\0') {
       init_term();
+      // Reattach the timer handler
+      attach_sigalrm();
+      set_timer();
       return (-1);
     }
     arg_count = str_scan(cmd_str, arg, 5) + 1;
@@ -400,6 +409,9 @@ int monitor(int curpc) {
       exit(0);
     case CMD_EXIT:
       init_term();
+      // Reattach the timer handler
+      attach_sigalrm();
+      set_timer();
       return (-1);
 
     case CMD_BRK:
@@ -453,6 +465,9 @@ int monitor(int curpc) {
       addr = parse_addr_msg(arg[1], NULL);
       if (addr != -1) {
         init_term();
+        // Reattach the timer handler
+        attach_sigalrm();
+	set_timer();
 	return (addr);
       }
       break;
