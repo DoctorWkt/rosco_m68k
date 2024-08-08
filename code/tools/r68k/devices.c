@@ -130,9 +130,6 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
       op &= 0x0F;
     }
 
-printf("op is %d d1 %d\n", op, d1);
-print_regs(stdout);
-
     uint8_t c;
     bool r;
     int i, ptr;
