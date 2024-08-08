@@ -217,10 +217,10 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
       if (ifs && m68k_read_memory_8(a1) > 0) {
 	
 	fseek(ifs, d1 * 512, SEEK_SET);
-	gcount= fread(buf, 512, 1, ifs);
-#ifdef DEBUG_LOG_IO
-	fprintf(stderr, "READ %x\n", d1*512);
-#endif
+	gcount= fread(buf, 1, 512, ifs);
+        if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+	  fprintf(logfh, "SD card read block %d\n", d1);
+        }
 
 	if (gcount == 512) {
 	  for (i=0; i<512; i++) {
@@ -229,17 +229,15 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
 
 	  m68k_set_reg(M68K_REG_D0, 1);	// succeed
 	} else {
-	  printf("!!! Bad Read\n");
-#ifdef DEBUG_LOG_IO
-	  fprintf(stderr, "!!! Bad Read\n");
-#endif
+          if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+	    fprintf(logfh, "!!! Bad Read\n");
+	  }
 	  m68k_set_reg(M68K_REG_D0, 0);	// fail
 	}
       } else {
-	printf("!!! Not init\n");
-#ifdef DEBUG_LOG_IO
-	fprintf(stderr, "!!! Not init\n");
-#endif
+        if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+	  fprintf(logfh, "!!! Not init\n");
+        }
 	m68k_set_reg(M68K_REG_D0, 0);	// fail
       }
 
@@ -253,26 +251,24 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
 	}
 
 	fseek(ifs, d1 * 512, SEEK_SET);
-	gcount= fwrite(buf, 512, 1, ifs);
+	gcount= fwrite(buf, 1, 512, ifs);
 
-#ifdef DEBUG_LOG_IO
-	fprintf(stderr, "WRITE %x\n", d1 * 512);
-#endif
+        if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+	  fprintf(logfh, "SD card write block %d\n", d1);
+        }
 
 	if (gcount == 512) {
 	  m68k_set_reg(M68K_REG_D0, 1);	// succeed
 	} else {
-	  printf("!!! Bad Write\n");
-#ifdef DEBUG_LOG_IO
-	  fprintf(stderr, "!!! Bad Write\n");
-#endif
+          if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+	    fprintf(logfh, "!!! Bad Write\n");
+	  }
 	  m68k_set_reg(M68K_REG_D0, 0);	// fail
 	}
       } else {
-	printf("!!! Not init or out of bounds\n");
-#ifdef DEBUG_LOG_IO
-	fprintf(stderr, "!!! Not init or out of bounds\n");
-#endif
+        if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+	  fprintf(logfh, "!!! Not init or out of bounds\n");
+	}
 	m68k_set_reg(M68K_REG_D0, 0);	// fail
       }
 

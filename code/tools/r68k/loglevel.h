@@ -8,5 +8,6 @@
 #define LOG_REGDUMP	0x08		// Register dump
 #define LOG_ILLINST	0x10		// Illegal instruction handler
 #define LOG_INTACK	0x20		// Interrupt acknowledge handler
+#define LOG_SDCARD	0x40		// SD Card operations
 
 #endif

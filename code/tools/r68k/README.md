@@ -11,6 +11,7 @@ Run native rosco_m68k binaries on your modern computer.
 
 You'll need the rosco_m68k toolchain (or other m68k toolchain of
 your choosing) installed, as well as build tools for your platform.
+You will also need the `readline` library installed. Now do:
 
 ```
 make clean all
@@ -27,6 +28,9 @@ example, assuming you have gone into `code/software/life` and built
 ```
 
 and run the Game of Life in your terminal.
+
+These example programs are known to work: 2dmaze, adventure, dhrystone,
+easy68k-demo, ehbasic, life, memcheck, sdfat_menu and vterm.
 
 ## Emulator Usage
 
@@ -52,6 +56,7 @@ The available debug flags are:
 0x08   Register dump
 0x10   Illegal instruction handler
 0x20   Interrupt acknowledge handler
+0x40   SD Card operations
 ```
 
 Unless specified, the default flags will disassemble instructions and
@@ -60,6 +65,10 @@ dump the registers after each instruction.
 If not specified, the default ROM image is `firmware/rosco_m68k.rom`,
 i.e. a file relative to the location of the `r68k` program.
 There is no default SD card filename.
+
+If your executable was linked using `m68k-elf-ld -T -Map=<name>.map ...`
+to create a map file with symbols and addresses, then you can use the
+`-M` command-line flag to load these symbols and associated addresses.
 
 You can set breakpoints from the command line, e.g.
 
@@ -71,12 +80,9 @@ You can set breakpoints from the command line, e.g.
   -b '_foo+$100' An address within foo()
 ```
 
-Note that hexadecimal values need to be in quotes to stop the shell
-interpreting the '$' symbol.
-
-If your executable was linked using `m68k-elf-ld -T -Map=<name>.map ...`
-to create a map file with symbols and addresses, then you can use the
-`-M` command-line flag to load these symbols and associated addresses.
+The above examples show the use of symbols loaded from a map file.
+Note that hexadecimal values given on the command-line need to be in
+quotes to stop the shell from interpreting the '$' symbol.
 
 ## Monitor Instructions
 

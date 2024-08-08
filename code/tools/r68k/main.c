@@ -37,6 +37,14 @@ static unsigned write_brkpt= 0;
 extern char *sdfile;		// SD card file
 extern FILE *ifs;		// File handle for this
 
+// Close the log file if it is open
+void close_logfile() {
+  if (logfh!=NULL) {
+    fflush(logfh);
+    fclose(logfh);
+  }
+}
+
 // Given a filename and a base address, open and
 // load the binary data in the file at that address
 void ReadBinaryData(const char *filename, uint8_t * base) {
@@ -311,6 +319,7 @@ int main(int argc, char *argv[]) {
 	errx(EXIT_FAILURE, "Unable to open %s\n", optarg);
       // Set a default log level if not already set
       if (loglevel==0) loglevel = LOG_INSTDECODE;
+      atexit(close_logfile);
       break;
     case 'M':
       read_mapfile(optarg);
