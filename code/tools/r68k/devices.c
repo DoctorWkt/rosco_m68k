@@ -44,10 +44,14 @@
 #define DUART_TBB	0x00f00017
 #define DUART_IVR	0x00f00019
 #define DUART_OPCR	0x00f0001b
-#define W_OPR_SETCMD	0x00f0001d
 #define R_STARTCNTCMD	0x00f0001d
 #define R_STOPCNTCMD	0x00f0001f
 #define W_OPR_RESETCMD  0x00f0001f
+
+// SPI defines
+#define SPI_OUTBIT	0x00f0001d
+#define SPI_OUTMASK	0x40		// This bit inverse of output bit
+#define SPI_OUTPUT	0x10		// If set, is a bit send
 
 // Xosera addresses
 #define XM_BASEADDR	0x00f80060
@@ -108,6 +112,8 @@ char read_char() {
 // I/O Handling Routines
 
 static uint8_t ivr_value= 0x0f;
+static uint8_t spi_outvalue= 0;
+static uint8_t spi_bitcount= 0;
 
 // Print a log message.
 void unimplemented_io(unsigned int address, unsigned int value,
@@ -190,7 +196,6 @@ void io_write_byte(unsigned int address, unsigned int value) {
       case DUART_IVR:
 	ivr_value= value & 0xFF; return;
       case W_CLKSEL_B:
-      case W_OPR_SETCMD:
       case W_OPR_RESETCMD:
       case DUART_CRA:
       case DUART_ACR:
@@ -203,6 +208,19 @@ void io_write_byte(unsigned int address, unsigned int value) {
       case DUART_CTUR:
       case DUART_CTLR:
       case DUART_TBB:		// Writes to port B discarded for now
+	return;
+
+      // SPI
+      case SPI_OUTBIT:
+	// If there is an SPI output bit
+	if (value & SPI_OUTPUT) {
+	  // Convert to 0 or 1, then
+	  // shift it into spi_outvalue
+	  value= 1 - ((value & SPI_OUTMASK) >> 6);
+	  spi_outvalue= (spi_outvalue<<1) | value;
+	  spi_bitcount++;
+	  
+	}
 	return;
   }
 
