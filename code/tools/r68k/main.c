@@ -62,11 +62,14 @@ void ReadBinaryData(const char *filename, uint8_t * base) {
 }
 
 // Size of ROM/RAM and their locations
-// in the MC68010 address space
+// in the MC68010 address space. Also
+// the base of the I/O area.
 #define RAM_SIZE	1024 * 1024
 #define RAM_BASE	0x00000000
 #define ROM_SIZE	1024 * 1024
 #define ROM_BASE	0x00e00000
+
+#define IO_BASE		0x00f00000
 
 // Allocate memory for ROM and RAM, and
 // read in the ROM image.
@@ -129,19 +132,29 @@ uint8_t * baseAddress(uint32_t address) {
                               (BASE)[2] = ((VAL)>>8)  & 0xff; \
                               (BASE)[3] = (VAL)       & 0xff
 
-// Functions to read data from memory
+// Functions to read data from memory. It used to be so
+// neat and tidy before we implemented the I/O space, sigh!
 unsigned int cpu_read_byte(unsigned int address) {
-  uint8_t *base= baseAddress(address);
+  uint8_t *base;
+
+  if (address >= IO_BASE) return(io_read_byte(address));
+  base= baseAddress(address);
   return READ_BYTE(base);
 }
 
 unsigned int cpu_read_word(unsigned int address) {
   uint8_t *base= baseAddress(address);
+
+  if (address >= IO_BASE) return(io_read_word(address));
+  base= baseAddress(address);
   return READ_WORD(base);
 }
 
 unsigned int cpu_read_long(unsigned int address) {
-  uint8_t *base= baseAddress(address);
+  uint8_t *base;
+
+  if (address >= IO_BASE) return(io_read_long(address));
+  base= baseAddress(address);
   return READ_LONG(base);
 }
 
@@ -157,7 +170,10 @@ unsigned int cpu_read_long_dasm(unsigned int address) {
 
 // Write data to memory
 void cpu_write_byte(unsigned int address, unsigned int value) {
-  uint8_t *base= baseAddress(address);
+  uint8_t *base;
+
+  if (address >= IO_BASE) { io_write_byte(address, value); return; }
+  base= baseAddress(address);
   if (address >= RAM_BASE + RAM_SIZE) {
     if (logfh != NULL && (loglevel & LOG_BUSERROR) == LOG_BUSERROR) {
       fprintf(logfh, "Attempted to write %02x to RAM address %08x\n",
@@ -173,7 +189,10 @@ void cpu_write_byte(unsigned int address, unsigned int value) {
 }
 
 void cpu_write_word(unsigned int address, unsigned int value) {
-  uint8_t *base= baseAddress(address);
+  uint8_t *base;
+
+  if (address >= IO_BASE) { io_write_word(address, value); return; }
+  base= baseAddress(address);
   if (address >= RAM_BASE + RAM_SIZE) {
     if (logfh != NULL && (loglevel & LOG_BUSERROR) == LOG_BUSERROR) {
       fprintf(logfh, "Attempted to write %04x to RAM address %08x\n",
@@ -189,7 +208,10 @@ void cpu_write_word(unsigned int address, unsigned int value) {
 }
 
 void cpu_write_long(unsigned int address, unsigned int value) {
-  uint8_t *base= baseAddress(address);
+  uint8_t *base;
+
+  if (address >= IO_BASE) { io_write_long(address, value); return; }
+  base= baseAddress(address);
   if (address >= RAM_BASE + RAM_SIZE) {
     if (logfh != NULL && (loglevel & LOG_BUSERROR) == LOG_BUSERROR) {
       fprintf(logfh, "Attempted to write %08x to RAM address %08x\n",

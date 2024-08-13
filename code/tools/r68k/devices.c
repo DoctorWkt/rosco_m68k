@@ -13,16 +13,50 @@
 #include "musashi/m68kcpu.h"
 #include "devices.h"
 #include "main.h"
+#include "mapfile.h"
 #include "loglevel.h"
 
-// Functions to deal with the DUART,
-// and the SD card, along with Easy68k
-// helper functions.
+// Functions to emulate hardware (DUART, SD card)
+// as well as functions that implement system calls.
 
 #define TICK_COUNT 0x408
 #define ECHO_ON    0x410
 #define PROMPT_ON  0x411
 #define LF_DISPLAY 0x412
+
+// UART definitions
+#define UART_BASE	0x00f00001	// More comments here please!!
+#define DUART_MR1A	0x00f00001
+#define R_STATUS_A	0x00f00003	// UART port A status
+#define	DUART_CSRA	0x00f00003
+#define	DUART_CRA	0x00f00005
+#define R_RXBUF_A	0x00f00007	// Read from UART port A
+#define W_TXBUF_A	0x00f00007	// Write to UART port A
+#define	DUART_ACR	0x00f00009
+#define R_ISR		0x00f0000b
+#define W_CLKSEL_B	0x00f0000b
+#define DUART_CTUR	0x00f0000d
+#define DUART_CTLR	0x00f0000f
+#define DUART_MR1B	0x00f00011
+#define DUART_CSRB	0x00f00013
+#define DUART_SRB	0x00f00013
+#define DUART_CRB	0x00f00015
+#define DUART_TBB	0x00f00017
+#define DUART_IVR	0x00f00019
+#define DUART_OPCR	0x00f0001b
+#define W_OPR_SETCMD	0x00f0001d
+#define R_STARTCNTCMD	0x00f0001d
+#define R_STOPCNTCMD	0x00f0001f
+#define W_OPR_RESETCMD  0x00f0001f
+
+// Xosera addresses
+#define XM_BASEADDR	0x00f80060
+
+// ATA definitions
+#define ATA_REG_WR_DEVICE_CTL	0x00f8005c
+
+// Other
+#define BERR_FLAG       0x1184
 
 char *sdfile=NULL;		// SD card file
 FILE *ifs=NULL;			// File handle for this
@@ -71,41 +105,133 @@ char read_char() {
     return(c);
 }
 
-#if 0
-#define BUF_LEN 78
-#define BUF_MAX BUF_LEN - 2
-static uint8_t buf[BUF_LEN];
+// I/O Handling Routines
 
-static uint8_t digit(unsigned char digit) {
-    if (digit < 10) {
-        return (char)(digit + '0');
-    } else {
-        return (char)(digit - 10 + 'A');
-    }
+static uint8_t ivr_value= 0x0f;
+
+// Print a log message.
+void unimplemented_io(unsigned int address, unsigned int value,
+						char *msg, int iswrite) {
+  char *sym;
+  int offset;
+
+  fprintf(logfh, "Unimplemented I/O %s, ", msg);
+  if (iswrite)
+    fprintf(logfh, "value 0x%x, ", value);
+  
+  sym = get_symbol_and_offset(m68ki_cpu.pc, &offset);
+
+
+  if (sym != NULL)
+    fprintf(logfh, "addr 0x%x, PC %s+$%x (0x%x)\n", address, sym, offset, m68ki_cpu.pc);
+  else
+    fprintf(logfh, "addr 0x%x, PC 0x%x\n", address, m68ki_cpu.pc);
+  exit(1);
 }
-#endif
 
-#if 0
-static char* print_unsigned(uint32_t num, uint8_t base) {
-    if (base < 2 || base > 36) {
-        buf[0] = 0;
-        return (char *)buf;
-    }
 
-    unsigned char bp = BUF_MAX;
+unsigned int io_read_byte(unsigned int address) {
+  unsigned int value;
 
-    if (num == 0) {
-        buf[bp--] = '0';
-    } else {
-        while (num > 0) {
-            buf[bp--] = digit(num % base);
-            num /= base;
-        }
-    } 
+  switch(address) {
+      // UART
+      case R_STATUS_A:		// Get the status of port A
+	value=8;		// Port A is writable
+	if (check_char())
+	  value=9;		// Writeable and ready to read
+	return(value);
+      case R_RXBUF_A:		// Read a character from port A
+	return(read_char());
+      case DUART_IVR:
+	return(ivr_value);
+      case DUART_SRB:		// Get status of port B
+	return(8);		// Writeable, but for now writes
+				// are discarded. To fix later
+				// with a socket.
+      case R_STOPCNTCMD:
+      case R_STARTCNTCMD:
+	return(0);
+      case R_ISR:		// Counter interrupt
+	return(8);
 
-    return ((char*)&buf[bp+1]);
+      // Xosera: say that it doesn't exist
+      case XM_BASEADDR:
+	// Write 1 to address BERR_FLAG to indicate
+	// that there is no RAM at this address
+	cpu_write_byte(BERR_FLAG, 1);
+	return(0);
+  }
+
+  if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
+    unimplemented_io(address, 0, "byte read", 0);
+  }
+  return(0);
 }
-#endif
+
+unsigned int io_read_word(unsigned int address) {
+  if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
+    unimplemented_io(address, 0, "word read", 0);
+  }
+  return(0);
+}
+
+unsigned int io_read_long(unsigned int address) {
+  if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
+    unimplemented_io(address, 0, "long read", 0);
+  }
+  return(0);
+}
+
+void io_write_byte(unsigned int address, unsigned int value) {
+  switch(address) {
+      // UART
+      case W_TXBUF_A: 		// Send a character on port A
+      	fputc(value & 0xFF, stdout); fflush(stdout); return;
+      case DUART_IVR:
+	ivr_value= value & 0xFF; return;
+      case W_CLKSEL_B:
+      case W_OPR_SETCMD:
+      case W_OPR_RESETCMD:
+      case DUART_CRA:
+      case DUART_ACR:
+      case DUART_CSRA:
+      case DUART_CRB:
+      case DUART_CSRB:
+      case DUART_MR1A:
+      case DUART_MR1B:
+      case DUART_OPCR:
+      case DUART_CTUR:
+      case DUART_CTLR:
+      case DUART_TBB:		// Writes to port B discarded for now
+	return;
+  }
+
+  if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
+    unimplemented_io(address, value, "byte write", 1);
+  }
+}
+
+void io_write_word(unsigned int address, unsigned int value) {
+  switch(address) {
+    // ATA
+    case ATA_REG_WR_DEVICE_CTL:
+      // Write 1 to address BERR_FLAG to indicate
+      // that there is nothing at this address
+      cpu_write_byte(BERR_FLAG, 1);
+      return;
+  }
+
+  if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
+    unimplemented_io(address, value, "word write", 1);
+  }
+}
+
+void io_write_long(unsigned int address, unsigned int value) {
+  if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
+    unimplemented_io(address, value, "long write", 1);
+  }
+}
+
 
 int illegal_instruction_handler(int __attribute__((unused)) opcode) {
   m68ki_cpu_core ctx;
