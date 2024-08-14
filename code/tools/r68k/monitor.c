@@ -379,8 +379,16 @@ int monitor(int curpc) {
   // Turn off handling of the timer for now
   detach_sigalrm();
 
-  if (is_breakpoint(curpc, BRK_INST))
-    printf("Stopped at $%04X\n", curpc);
+  if (is_breakpoint(curpc, BRK_INST)) {
+    sym= NULL;
+    if (mapfile_loaded)
+      sym = get_symbol_and_offset(curpc, &offset);
+    if (sym != NULL)
+      printf("Stopped at %s+$%X ($%06X)\n", sym, offset, curpc);
+    else
+      printf("Stopped at $%06X\n", curpc);
+    print_regs(stdout); printf("\n");
+  }
 
   while (1) {
     fflush(stdout);

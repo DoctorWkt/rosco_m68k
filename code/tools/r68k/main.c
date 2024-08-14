@@ -19,6 +19,7 @@
 #include "loglevel.h"
 #include "mapfile.h"
 #include "monitor.h"
+#include "sdcard.h"
 
 // Global variables
 uint8_t *g_ram;			    // RAM memory
@@ -390,6 +391,9 @@ int main(int argc, char *argv[]) {
   // Initialise the terminal
   init_term();
   atexit(reset_term);
+
+  // Initialise the SD card variables
+  sdcard_init();
 
   // Initialise the CPU
   m68k_set_cpu_type(M68K_CPU_TYPE_68010);

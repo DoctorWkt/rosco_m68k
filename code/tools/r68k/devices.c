@@ -15,6 +15,7 @@
 #include "main.h"
 #include "mapfile.h"
 #include "loglevel.h"
+#include "sdcard.h"
 
 // Functions to emulate hardware (DUART, SD card)
 // as well as functions that implement system calls.
@@ -24,7 +25,8 @@
 #define PROMPT_ON  0x411
 #define LF_DISPLAY 0x412
 
-// UART definitions
+// UART definitions. These need to
+// have more comments added TODO
 #define UART_BASE	0x00f00001	// More comments here please!!
 #define DUART_MR1A	0x00f00001
 #define R_STATUS_A	0x00f00003	// UART port A status
@@ -50,8 +52,11 @@
 
 // SPI defines
 #define SPI_OUTBIT	0x00f0001d
-#define SPI_OUTMASK	0x40		// This bit inverse of output bit
-#define SPI_OUTPUT	0x10		// If set, is a bit send
+#define  SPI_ASSERTCS0	0x04
+#define  SPI_OUTMASK	0x40	// This bit inverse of output bit
+#define SPI_OUTPUT	0x10	// If set, is a bit send
+#define SPI_INBIT	0x00f0001b
+#define SPI_INMASK	0x04	// Bit to set if receiving a 1 bit
 
 // Xosera addresses
 #define XM_BASEADDR	0x00f80060
@@ -62,8 +67,8 @@
 // Other
 #define BERR_FLAG       0x1184
 
-char *sdfile=NULL;		// SD card file
-FILE *ifs=NULL;			// File handle for this
+char *sdfile = NULL;		// SD card file
+FILE *ifs = NULL;		// File handle for this
 extern FILE *logfh;
 extern int loglevel;
 
@@ -71,65 +76,69 @@ extern int loglevel;
 struct termios originalTermios;
 
 void init_term() {
-    struct termios newTermios;
+  struct termios newTermios;
 
-    tcgetattr(STDIN_FILENO, &originalTermios);
+  tcgetattr(STDIN_FILENO, &originalTermios);
 
-    newTermios = originalTermios;
-    newTermios.c_lflag &= ~(ICANON | ECHO);
-    newTermios.c_iflag &= ~(ICRNL | INLCR);
+  newTermios = originalTermios;
+  newTermios.c_lflag &= ~(ICANON | ECHO);
+  newTermios.c_iflag &= ~(ICRNL | INLCR);
 
-    tcsetattr(STDIN_FILENO, TCSANOW, &newTermios);
+  tcsetattr(STDIN_FILENO, TCSANOW, &newTermios);
 
-    int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
-    fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
+  int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+  fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
 }
 
 void reset_term() {
-    tcsetattr(STDIN_FILENO, TCSANOW, &originalTermios);
+  tcsetattr(STDIN_FILENO, TCSANOW, &originalTermios);
 }
 
 int check_char() {
-    fd_set readfds;
-    FD_ZERO(&readfds);
-    FD_SET(STDIN_FILENO, &readfds);
+  fd_set readfds;
+  FD_ZERO(&readfds);
+  FD_SET(STDIN_FILENO, &readfds);
 
-    struct timeval timeout;
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 0;
+  struct timeval timeout;
+  timeout.tv_sec = 0;
+  timeout.tv_usec = 0;
 
-    return(select(STDIN_FILENO + 1, &readfds, NULL, NULL, &timeout) > 0);
+  return (select(STDIN_FILENO + 1, &readfds, NULL, NULL, &timeout) > 0);
 }
 
 char read_char() {
-    char c = 0;
-    while (c == 0) {
-        read(STDIN_FILENO, &c, 1);
-    }
-    return(c);
+  char c = 0;
+  while (c == 0) {
+    read(STDIN_FILENO, &c, 1);
+  }
+  return (c);
 }
 
 // I/O Handling Routines
 
-static uint8_t ivr_value= 0x0f;
-static uint8_t spi_outvalue= 0;
-static uint8_t spi_bitcount= 0;
+static uint8_t ivr_value = 0x0f;
+static uint8_t spi_outvalue = 0;	// Data sent by CPU via SPI
+static uint8_t spi_outcount = 0;	// Count of bits received
+static uint8_t spi_invalue = 0;		// Data to be received via SPI
+static uint8_t spi_incount = 0;		// Count of bits received
+static uint8_t spi_isdata = 0;		// Is there data to receive?
 
 // Print a log message.
 void unimplemented_io(unsigned int address, unsigned int value,
-						char *msg, int iswrite) {
+		      char *msg, int iswrite) {
   char *sym;
   int offset;
 
   fprintf(logfh, "Unimplemented I/O %s, ", msg);
   if (iswrite)
     fprintf(logfh, "value 0x%x, ", value);
-  
+
   sym = get_symbol_and_offset(m68ki_cpu.pc, &offset);
 
 
   if (sym != NULL)
-    fprintf(logfh, "addr 0x%x, PC %s+$%x (0x%x)\n", address, sym, offset, m68ki_cpu.pc);
+    fprintf(logfh, "addr 0x%x, PC %s+$%x (0x%x)\n", address, sym, offset,
+	    m68ki_cpu.pc);
   else
     fprintf(logfh, "addr 0x%x, PC 0x%x\n", address, m68ki_cpu.pc);
   exit(1);
@@ -138,90 +147,143 @@ void unimplemented_io(unsigned int address, unsigned int value,
 
 unsigned int io_read_byte(unsigned int address) {
   unsigned int value;
+  uint8_t *dataptr;
 
-  switch(address) {
-      // UART
-      case R_STATUS_A:		// Get the status of port A
-	value=8;		// Port A is writable
-	if (check_char())
-	  value=9;		// Writeable and ready to read
-	return(value);
-      case R_RXBUF_A:		// Read a character from port A
-	return(read_char());
-      case DUART_IVR:
-	return(ivr_value);
-      case DUART_SRB:		// Get status of port B
-	return(8);		// Writeable, but for now writes
-				// are discarded. To fix later
-				// with a socket.
-      case R_STOPCNTCMD:
-      case R_STARTCNTCMD:
-	return(0);
-      case R_ISR:		// Counter interrupt
-	return(8);
+  switch (address) {
+    // UART
+  case R_STATUS_A:		// Get the status of port A
+    value = 8;			// Port A is writable
+    if (check_char())
+      value = 9;		// Writeable and ready to read
+    return (value);
+  case R_RXBUF_A:		// Read a character from port A
+    return (read_char());
+  case DUART_IVR:
+    return (ivr_value);
+  case DUART_SRB:		// Get status of port B
+    return (8);			// Writeable, but for now writes
+    				// are discarded. To fix later
+    				// with a socket.
+  case R_STOPCNTCMD:
+  case R_STARTCNTCMD:
+    return (0);
+  case R_ISR:			// Counter interrupt
+    return (8);
 
-      // Xosera: say that it doesn't exist
-      case XM_BASEADDR:
-	// Write 1 to address BERR_FLAG to indicate
-	// that there is no RAM at this address
-	cpu_write_byte(BERR_FLAG, 1);
-	return(0);
+    // Xosera: say that it doesn't exist
+  case XM_BASEADDR:
+    // Write 1 to address BERR_FLAG to indicate
+    // that there is no RAM at this address
+    cpu_write_byte(BERR_FLAG, 1);
+    return (0);
+
+    // SPI
+  case SPI_INBIT:
+    // If there is no data to receive
+    if (spi_isdata == 0) {
+      // See if there is any in the SD card buffer
+      dataptr = spi_get_data();
+      if (dataptr == NULL)
+	return (0);
+
+      // Get the byte of data to send.
+      // We start at bit position 0.
+      spi_invalue = *dataptr;
+      spi_incount = 0;
+      spi_isdata = 1;
+    }
+
+    // Most significant bit on?
+    if (spi_invalue & 0x80)
+      value = SPI_INMASK;
+    else
+      value = 0;
+
+    // Shift to lose that bit, bump the count
+    // and reset if we have sent all eight bits
+    spi_invalue = spi_invalue << 1;
+    spi_incount++;
+
+    if (spi_incount == 8) {
+      spi_incount = 0;
+      spi_isdata = 0;
+    }
+    return (value);
   }
 
   if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
     unimplemented_io(address, 0, "byte read", 0);
   }
-  return(0);
+  return (0);
 }
 
 unsigned int io_read_word(unsigned int address) {
   if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
     unimplemented_io(address, 0, "word read", 0);
   }
-  return(0);
+  return (0);
 }
 
 unsigned int io_read_long(unsigned int address) {
   if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
     unimplemented_io(address, 0, "long read", 0);
   }
-  return(0);
+  return (0);
 }
 
 void io_write_byte(unsigned int address, unsigned int value) {
-  switch(address) {
-      // UART
-      case W_TXBUF_A: 		// Send a character on port A
-      	fputc(value & 0xFF, stdout); fflush(stdout); return;
-      case DUART_IVR:
-	ivr_value= value & 0xFF; return;
-      case W_CLKSEL_B:
-      case W_OPR_RESETCMD:
-      case DUART_CRA:
-      case DUART_ACR:
-      case DUART_CSRA:
-      case DUART_CRB:
-      case DUART_CSRB:
-      case DUART_MR1A:
-      case DUART_MR1B:
-      case DUART_OPCR:
-      case DUART_CTUR:
-      case DUART_CTLR:
-      case DUART_TBB:		// Writes to port B discarded for now
-	return;
+  switch (address) {
+  // UART
+  case W_TXBUF_A:		// Send a character on port A
+    fputc(value & 0xFF, stdout);
+    fflush(stdout);
+    return;
+  case DUART_IVR:
+    ivr_value = value & 0xFF;
+    return;
+  case W_CLKSEL_B:
+  case W_OPR_RESETCMD:
+  case DUART_CRA:
+  case DUART_ACR:
+  case DUART_CSRA:
+  case DUART_CRB:
+  case DUART_CSRB:
+  case DUART_MR1A:
+  case DUART_MR1B:
+  case DUART_OPCR:
+  case DUART_CTUR:
+  case DUART_CTLR:
+  case DUART_TBB:		// Writes to port B discarded for now
+    return;
 
-      // SPI
-      case SPI_OUTBIT:
-	// If there is an SPI output bit
-	if (value & SPI_OUTPUT) {
-	  // Convert to 0 or 1, then
-	  // shift it into spi_outvalue
-	  value= 1 - ((value & SPI_OUTMASK) >> 6);
-	  spi_outvalue= (spi_outvalue<<1) | value;
-	  spi_bitcount++;
-	  
-	}
-	return;
+  // SPI
+  case SPI_OUTBIT:
+    // If CS) has been asserted
+    if (value & SPI_ASSERTCS0) {
+      // Send back an 0xFF data byte
+      spi_invalue = 0xff;
+      spi_incount = 0;
+      spi_isdata = 1;
+      return;
+    }
+
+    // If there is an SPI output bit
+    if (value & SPI_OUTPUT) {
+      // Convert to 0 or 1, then
+      // shift it into spi_outvalue
+      value = 1 - ((value & SPI_OUTMASK) >> 6);
+      spi_outvalue = (spi_outvalue << 1) | value;
+      spi_outcount++;
+
+      if (spi_outcount == 8) {
+	// Send the received byte to the
+	// SD card command handler
+	spi_latch_in(spi_outvalue);
+	spi_outcount = 0;
+	spi_outvalue = 0;
+      }
+    }
+    return;
   }
 
   if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
@@ -230,13 +292,13 @@ void io_write_byte(unsigned int address, unsigned int value) {
 }
 
 void io_write_word(unsigned int address, unsigned int value) {
-  switch(address) {
-    // ATA
-    case ATA_REG_WR_DEVICE_CTL:
-      // Write 1 to address BERR_FLAG to indicate
-      // that there is nothing at this address
-      cpu_write_byte(BERR_FLAG, 1);
-      return;
+  switch (address) {
+  // ATA
+  case ATA_REG_WR_DEVICE_CTL:
+    // Write 1 to address BERR_FLAG to indicate
+    // that there is nothing at this address
+    cpu_write_byte(BERR_FLAG, 1);
+    return;
   }
 
   if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
@@ -267,8 +329,7 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
 
   if ((d7 & 0xFFFFFF00) == 0xF0F0F000 && d6 == 0xAA55AA55) {
     // It's a trap!
-
-    // below leaves Easy68k ops from E0 and up, others from 0 ..
+    // Below leaves Easy68k ops from E0 and up, others from 0 ..
     uint8_t op = d7 & 0x000000FF;
     if (op >= 0xF0) {
       op &= 0x0F;
@@ -327,7 +388,9 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
       // prog_exit
       m68k_pulse_halt();
       tcsetattr(STDIN_FILENO, TCSANOW, &originalTermios);
-      exit(m68k_read_memory_32(a7 + 4));	// assuming called from cstdlib - C will have stacked an exit code
+      exit(m68k_read_memory_32(a7 + 4));	// assuming called from
+						// cstdlib - C will have
+						// stacked an exit code
       break;
     case 4:
       // check_char
@@ -347,41 +410,42 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
       if (!ifs) {
 	m68k_set_reg(M68K_REG_D0, 1);
       } else {
-	m68k_write_memory_8(a1 + 0, 1);	// Initialized
-	m68k_write_memory_8(a1 + 1, 2);	// SDHC
-	m68k_write_memory_8(a1 + 2, 0);	// No current block
-	m68k_write_memory_32(a1 + 3, 0);	// Ignored (current block num)
-	m68k_write_memory_16(a1 + 7, 0);	// Ignored (current block offset)
-	m68k_write_memory_8(a1 + 9, 0);	// No partial reads (_could_ support, just don't yet)
-	m68k_set_reg(M68K_REG_D0, 0);	// Success
+	m68k_write_memory_8(a1 + 0, 1);	 // Initialized
+	m68k_write_memory_8(a1 + 1, 2);	 // SDHC
+	m68k_write_memory_8(a1 + 2, 0);	 // No current block
+	m68k_write_memory_32(a1 + 3, 0); // Ignored (current block num)
+	m68k_write_memory_16(a1 + 7, 0); // Ignored (current block offset)
+	m68k_write_memory_8(a1 + 9, 0);	 // No partial reads
+					 // (_could_ support, just don't yet)
+	m68k_set_reg(M68K_REG_D0, 0);	 // Success
       }
       break;
     case 7:
       // sd_read
       if (ifs && m68k_read_memory_8(a1) > 0) {
-	
+
 	fseek(ifs, d1 * 512, SEEK_SET);
-	gcount= fread(buf, 1, 512, ifs);
-        if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+	gcount = fread(buf, 1, 512, ifs);
+	if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
 	  fprintf(logfh, "SD card read block %d\n", d1);
-        }
+	}
 
 	if (gcount == 512) {
-	  for (i=0; i<512; i++) {
+	  for (i = 0; i < 512; i++) {
 	    m68k_write_memory_8(a2++, buf[i]);
 	  }
 
 	  m68k_set_reg(M68K_REG_D0, 1);	// succeed
 	} else {
-          if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+	  if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
 	    fprintf(logfh, "!!! Bad Read\n");
 	  }
 	  m68k_set_reg(M68K_REG_D0, 0);	// fail
 	}
       } else {
-        if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+	if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
 	  fprintf(logfh, "!!! Not init\n");
-        }
+	}
 	m68k_set_reg(M68K_REG_D0, 0);	// fail
       }
 
@@ -395,22 +459,22 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
 	}
 
 	fseek(ifs, d1 * 512, SEEK_SET);
-	gcount= fwrite(buf, 1, 512, ifs);
+	gcount = fwrite(buf, 1, 512, ifs);
 
-        if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+	if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
 	  fprintf(logfh, "SD card write block %d\n", d1);
-        }
+	}
 
 	if (gcount == 512) {
 	  m68k_set_reg(M68K_REG_D0, 1);	// succeed
 	} else {
-          if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+	  if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
 	    fprintf(logfh, "!!! Bad Write\n");
 	  }
 	  m68k_set_reg(M68K_REG_D0, 0);	// fail
 	}
       } else {
-        if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+	if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
 	  fprintf(logfh, "!!! Not init or out of bounds\n");
 	}
 	m68k_set_reg(M68K_REG_D0, 0);	// fail
@@ -547,12 +611,14 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
       // instead of using termcap or curses. Later ...
       if ((d1 & 0xFFFF) == 0xFF00) {
 	// clear screen
-	printf("\x1B[2J"); fflush(stdout);
+	printf("\x1B[2J");
+	fflush(stdout);
       } else {
 	// Move X, Y
-	row= d1 & 0xff;
-	col= (d1 >> 8) & 0xff;
-	 printf("\x1B[%d;%dH", row, col); fflush(stdout);
+	row = d1 & 0xff;
+	col = (d1 >> 8) & 0xff;
+	printf("\x1B[%d;%dH", row, col);
+	fflush(stdout);
       }
 
       break;
@@ -624,7 +690,7 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
 	c = m68k_read_memory_8(a1++);
 	if (c) {
 	  fputc(c, stdout);
-          fflush(stdout);
+	  fflush(stdout);
 	}
       } while (c != 0);
 
@@ -632,7 +698,7 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
 
       while (--chars_left) {
 	c = read_char();
-        fflush(stdout);
+	fflush(stdout);
 
 	if (c == 0x0D) {
 	  break;
@@ -663,7 +729,7 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
 
     default:
       fprintf(stderr,
-	"<UNKNOWN OP %x; D7=0x%x; D6=0x%x: IGNORED>\n", op, d7, d6);
+	      "<UNKNOWN OP %x; D7=0x%x; D6=0x%x: IGNORED>\n", op, d7, d6);
     }
   }
 
@@ -683,8 +749,8 @@ int interrupt_ack_handler(unsigned int irq) {
     return DUART_VEC;
   default:
     fprintf(stderr,
-"WARN: Unexpected IRQ %d; Autovectoring, but machine will probably lock up!\n",
-					irq);
+	    "WARN: Unexpected IRQ %d; Autovectoring, but machine will probably lock up!\n",
+	    irq);
     return M68K_INT_ACK_AUTOVECTOR;
   }
 }
