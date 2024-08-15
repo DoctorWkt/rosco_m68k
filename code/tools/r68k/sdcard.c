@@ -102,14 +102,16 @@ static void put_u32be(uint8_t * buf, uint32_t data) {
 // Write a block at the given blk offset.
 // Return 1 if OK, 1 otherwise
 static int imagewrite(uint32_t blk, uint8_t * data) {
-  int cnt;
+  int err, cnt;
 
-  fseek(ifs, blk, SEEK_SET);
-  cnt = fwrite(data, 1, m_blksize, ifs);
-
-  if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
-    fprintf(logfh, "SD card write block %d\n", blk);
+  err= fseek(ifs, blk, SEEK_SET);
+  if (err==-1) {
+    if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+      fprintf(logfh, "SD unable to fseek to %d for write\n", blk);
+      return(0);
+    }
   }
+  cnt = fwrite(data, 1, m_blksize, ifs);
 
   if (cnt == m_blksize)
     return (1);
@@ -119,14 +121,16 @@ static int imagewrite(uint32_t blk, uint8_t * data) {
 // Read a block at the given blk offset.
 // Return 1 if OK, 1 otherwise
 static int imageread(uint32_t blk, uint8_t * data) {
-  int cnt;
+  int err, cnt;
 
-  fseek(ifs, blk, SEEK_SET);
-  cnt = fread(data, 1, m_blksize, ifs);
-
-  if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
-    fprintf(logfh, "SD card read block %d count %d\n", blk, cnt);
+  err= fseek(ifs, blk, SEEK_SET);
+  if (err==-1) {
+    if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+      fprintf(logfh, "SD unable to fseek to %d for read\n", blk);
+      return(0);
+    }
   }
+  cnt = fread(data, 1, m_blksize, ifs);
 
   if (cnt == m_blksize)
     return (1);
@@ -198,23 +202,14 @@ uint8_t *spi_get_data(void) {
 }
 
 // Absorb a byte from the SPI channel
-void spi_latch_in(uint8_t byte) {
+void spi_latch_in(uint8_t m_in_latch) {
 
-  // If this is possibly the first byte
-  // in a command, ignore if the bits
-  // are not 01XXXXXX
-  if (m_cmdidx == 0 && ((byte & 0xc0) != 0x40))
-    return;
+  // Bubble the existing command data down
+  // and put the byte that the end
+  for (int i=0; i<5; i++)
+    m_cmd[i] = m_cmd[i + 1];
 
-  // Save the byte in the command block
-  m_cmd[m_cmdidx++] = byte;
-
-  // Not a full command yet
-  if (m_cmdidx < 6)
-    return;
-
-  // Now a full command
-  m_cmdidx = 0;
+  m_cmd[5]= m_in_latch;
 
   switch (m_state) {
   case SD_STATE_IDLE:
@@ -233,17 +228,21 @@ void spi_latch_in(uint8_t byte) {
     m_data[m_write_ptr++] = m_in_latch;
     if (m_write_ptr == (m_blksize + 2)) {
       if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
-	fprintf(logfh, "writing LBA %x, data %02x %02x %02x %02x\n",
-		m_blknext, m_data[0], m_data[1], m_data[2], m_data[3]);
+	fprintf(logfh, "writing LBA %d (0x%x), data %02x %02x %02x %02x\n",
+		m_blknext, m_blknext, m_data[0], m_data[1], m_data[2], m_data[3]);
       }
       if (imagewrite(m_blknext, &m_data[0])) {
 	m_data[0] = DATA_RESPONSE_OK;
       } else {
 	m_data[0] = DATA_RESPONSE_IO_ERROR;
       }
-      m_data[1] = 0x01;
+      // m_data[1] = 0x01;
+      // send_data(2, SD_STATE_IDLE); // WKT original
+      send_data(1, SD_STATE_IDLE);
 
-      send_data(2, SD_STATE_IDLE);
+      // WKT: also clear the command buffer
+      for (int i = 0; i < 6; i++)
+	m_cmd[i] = 0xff;
     }
     break;
 
@@ -363,7 +362,7 @@ static void do_command() {
 	  blk /= m_blksize;
 	}
 	if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
-	  fprintf(logfh, "reading LBA %x\n", blk);
+	  fprintf(logfh, "reading LBA %d (0x%x)\n", blk, blk);
 	}
 	imageread(blk, &m_data[3]);
 	{

@@ -278,6 +278,12 @@ void io_write_byte(unsigned int address, unsigned int value) {
       if (spi_outcount == 8) {
 	// Send the received byte to the
 	// SD card command handler
+#if 0
+	if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
+	  if (spi_outvalue != 0xff)
+	    fprintf(logfh, "Latched SPI byte 0x%x\n", spi_outvalue);
+	}
+#endif
 	spi_latch_in(spi_outvalue);
 	spi_outcount = 0;
 	spi_outvalue = 0;

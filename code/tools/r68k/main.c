@@ -301,7 +301,7 @@ void print_regs(FILE *fh) {
 }
 
 void usage(char *name) {
-  fprintf(stderr, "Usage: %s [flags] executable_file\n\n", name);
+  fprintf(stderr, "\nUsage: %s [flags] executable_file\n\n", name);
   fprintf(stderr, "Flags are:\n");
   fprintf(stderr, "  -L logfile            Log debug info to this file\n");
   fprintf(stderr, "  -M mapfile            Load symbols from a map file\n");
@@ -310,6 +310,7 @@ void usage(char *name) {
   fprintf(stderr, "  -b addr [-b addr2]    Set breakpoint(s) at symbol or dec/$hex addr\n");
   fprintf(stderr, "  -l value              Set dec/$hex bitmap of debug flags\n");
   fprintf(stderr, "  -m                    Start in the monitor\n");
+  fprintf(stderr, "\nIf -R used, executable_file is optional.\n\n");
   exit(1);
 }
 
@@ -317,6 +318,7 @@ void usage(char *name) {
 int main(int argc, char *argv[]) {
   int opt;
   int i, brkcnt=0;
+  int other_romfile=0;
   int breakpoint;
   int offset;
   char *sym;
@@ -349,12 +351,19 @@ int main(int argc, char *argv[]) {
       break;
     case 'R':
       romfile = optarg;
+      // We also note that a non-default ROM
+      // has been loaded. As it could be
+      // the real hardware ROM, we won't
+      // require the user to name an executable
+      // on the command line
+      other_romfile=1;
       break;
     case 'S':
       sdfile = optarg;
       ifs= fopen(optarg, "r+");
       if (ifs==NULL)
 	errx(EXIT_FAILURE, "Unable to open %s\n", optarg);
+
       break;
     case 'b':
       // Cache the pointer for now
@@ -371,6 +380,12 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  // If we haven't loaded a non-default
+  // ROM and there is no executable named
+  // on the command line, it's an error
+  if (other_romfile==0 && optind==argc)
+    usage(argv[0]);
+
   // Initialise the monitor
   monitor_init();
 
@@ -385,8 +400,10 @@ int main(int argc, char *argv[]) {
   // Set up the memory
   initialise_memory(romfile);
 
-  // Load the program at address 0x40000 in RAM
-  ReadBinaryData(argv[optind], &(g_ram[0x40000]));
+  // Load the program at address 0x40000 in RAM.
+  // Only do this if we actually have a filename.
+  if (optind<argc)
+    ReadBinaryData(argv[optind], &(g_ram[0x40000]));
 
   // Initialise the terminal
   init_term();
