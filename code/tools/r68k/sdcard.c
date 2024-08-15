@@ -104,6 +104,18 @@ static void put_u32be(uint8_t * buf, uint32_t data) {
 static int imagewrite(uint32_t blk, uint8_t * data) {
   int err, cnt;
 
+#if 1
+  if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+    fprintf(logfh, "Block data:\n  ");
+    for (int i = 0; i < m_blksize ; i++) {
+      fprintf(logfh, "%02x ", data[i]);
+      if ((i % 16)==15)
+	fprintf(logfh, "\n  ");
+    }
+    fprintf(logfh, "\n");
+  }
+#endif
+
   // Change the block number to an offset
   if (m_type == SD_TYPE_HC)
     blk *= m_blksize;
@@ -179,9 +191,12 @@ static void send_data(uint16_t count, int new_state) {
 
 #if 1
   if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
-    fprintf(logfh, "SDCARD response: %d bytes ", count);
-    for (int i = 0; i < count && i < 8; i++)
+    fprintf(logfh, "SDCARD response: %d bytes:\n  ", count);
+    for (int i = 0; i < count; i++) {
       fprintf(logfh, "%02x ", m_data[i]);
+      if ((i % 16)==15)
+	fprintf(logfh, "\n  ");
+    }
     fprintf(logfh, "\n");
   }
 #endif
@@ -278,7 +293,7 @@ void spi_latch_in(uint8_t m_in_latch) {
 
 static void do_command() {
   if (((m_cmd[0] & 0xc0) == 0x40) && (m_cmd[5] & 1)) {
-    if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
+    if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
       fprintf(logfh, "SDCARD: cmd %02d %02x %02x %02x %02x %02x\n",
 	      m_cmd[0] & 0x3f, m_cmd[1], m_cmd[2],
 	      m_cmd[3], m_cmd[4], m_cmd[5]);
@@ -371,7 +386,7 @@ static void do_command() {
 	if (m_type == SD_TYPE_V2) {
 	  blk /= m_blksize;
 	}
-	if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
+	if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
 	  fprintf(logfh, "reading LBA %d (0x%x)\n", blk, blk);
 	}
 	imageread(blk, &m_data[3]);
@@ -454,7 +469,7 @@ static void do_command() {
       break;
 
     default:
-      if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
+      if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
 	fprintf(logfh, "SDCARD: Unsupported %02x\n", m_cmd[0] & 0x3f);
       }
       clean_cmd = false;

@@ -17,6 +17,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "machine.h"
 #include "bbsd.h"
 #include "bbspi.h"
 
@@ -99,6 +100,7 @@ BBSDInitStatus BBSD_initialize(BBSDCard *sd) {
 
 finally:
     BBSPI_deassert_cs0();
+
     return result;
 }
 
@@ -407,6 +409,7 @@ static uint8_t raw_sd_command_force(uint8_t command, uint32_t arg, bool force) {
     if (!wait_for_card(BBSD_COMMAND_WAIT_RETRIES) && !force) {
         return 0xFF;
     }
+
 
     BBSPI_send_byte(command | 0x40);
     for (int8_t s = 24; s >= 0; s -= 8)
