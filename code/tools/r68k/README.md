@@ -1,11 +1,17 @@
 # r68k
 
-Run native rosco_m68k binaries on your modern computer.
+`r68k` provides two forms of emulation:
 
-> **Note**: This is not a complete "emulation" or translation layer
-> for a full rosco_m68k system. It implements enough of the system
-> to run many general purpose programs, and is great for testing /
-> iterating on a thing without having to upload to a real machine. 
+1. It emulates many of the ROM system calls (traps 13, 14 and 15).
+   Using the firmware in the `firmware/` directory, you can run
+   native rosco_m68k binaries on your modern computer: examples
+   are the binaries created in the `../../software` sub-directories
+   such as 2dmaze, adventure, dhrystone, easy68k-demo, ehbasic, life,
+   memcheck, sdfat_menu and vterm.
+
+2. `r68k` also emulates the DUART hardware including the 100Hz clock
+   tick and the SPI bit-banged SD card. Using the real `rosco_m68k.rom`
+   you can boot the system up as if it was the real hardware.
 
 ## Build it
 
@@ -17,20 +23,17 @@ You will also need the `readline` library installed. Now do:
 make clean all
 ```
 
-## Run it
+## Running Native rosco_m68k Binaries
 
 Once `r68k` is built, you can run one of the example executables. For
-example, assuming you have gone into `code/software/life` and built
+example, assuming you have gone into `../../software/life` and built
 `life.bin`, then you can:
 
 ```
-./r68k ../../software/life/life.bin
+$ ./r68k ../../software/life/life.bin
 ```
 
 and run the Game of Life in your terminal.
-
-These example programs are known to work: 2dmaze, adventure, dhrystone,
-easy68k-demo, ehbasic, life, memcheck, sdfat_menu and vterm.
 
 ## Emulator Usage
 
@@ -57,9 +60,10 @@ The available debug flags are:
 0x10   Illegal instruction handler
 0x20   Interrupt acknowledge handler
 0x40   SD Card operations
+0x80   I/O Access operations
 ```
 
-Unless specified, the default flags will disassemble instructions and
+Unless specified, the default debug flags will disassemble instructions and
 dump the registers after each instruction.
 
 If not specified, the default ROM image is `firmware/rosco_m68k.rom`,
@@ -108,3 +112,62 @@ Hexadecimal literals start with $, e.g. $1234
 Symbols start with _ or [A-Za-z], e.g. _printf
 Symbols + offset, e.g. _printf+23, _printf+$100
 ```
+
+## Emulating the Real Hardware
+
+All of the above assumes that you are using the firnware in the
+`firmware/` directory which sends system calls to `r68k`.
+
+If, however, you want to run an emulation of real hardware, then
+you should invoke `r68k` with the real rosco_m68k ROM and with
+a bootable SD card image, e.g.
+
+```
+$ ./r68k -R ../../firmware/rosco_m68k_firmware/rosco_m68k.rom -S sdcard.img
+```
+
+You should then see:
+
+```
+                                 ___ ___ _   
+ ___ ___ ___ ___ ___       _____|  _| . | |_ 
+|  _| . |_ -|  _| . |     |     | . | . | '_|
+|_| |___|___|___|___|_____|_|_|_|___|___|_,_|
+                    |_____|  Classic 2.50.DEV
+
+MC68020 CPU @ 6.5MHz with 1048576 bytes RAM
+Initializing hard drives... No IDE interface found
+Searching for boot media...
+SDHC card:
+  Partition 1: Loading "/ROSCODE1.BIN"........
+Loaded 32668 bytes in ~2 sec.
+```
+
+followed by the execution of whatever binary you placed on the SD card
+with the name `ROSCODE1.BIN`.
+
+## Example Script to Build a Bootable SD Card
+
+Here is the script that I use to make a bootable SD card. Run it from
+the `../../software` directory.
+
+```
+#!/bin/sh
+image=sdcard.img
+size=36                         # in Megabytes
+dd if=/dev/zero of=$image bs=1M count=$size
+/sbin/parted $image mklabel msdos
+/sbin/parted $image mkpart primary fat32 1MB 100%
+/sbin/parted $image print
+/sbin/mkfs.vfat -F 32 --offset=2048 $image
+for i in `find . -name '*.bin'`
+do echo $i
+   mcopy -i "$image"@@1M $i ::
+done
+mcopy -i "$image"@@1M sdfat_menu/sdfat_menu.bin ::RosCode1.bin
+mdir -i "$image"@@1M
+```
+
+You will need the `parted`, `dosfstools` and `mtools` packages installed
+on your Linux box.
+
