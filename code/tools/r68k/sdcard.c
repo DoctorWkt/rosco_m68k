@@ -261,9 +261,18 @@ void spi_latch_in(uint8_t m_in_latch) {
       } else {
 	m_data[0] = DATA_RESPONSE_IO_ERROR;
       }
-      // m_data[1] = 0x01;
-      // send_data(2, SD_STATE_IDLE); // WKT original
-      send_data(1, SD_STATE_IDLE);
+      // m_data[1] = 0x01;		// WKT original
+      // send_data(2, SD_STATE_IDLE);   // WKT original
+
+      // WKT: looking at the rosco code in bbsd.c, it does:
+      // - send dummy FF byte
+      // - send FE block start
+      // - send 512 bytes of data
+      // - send dummy FF FF checksum
+      // - waits for card, i.e. expecting FF back
+      // This is why I'm sending the DATA_RESPONSE then FF
+      m_data[1] = 0xFF;
+      send_data(2, SD_STATE_IDLE);
 
       // WKT: also clear the command buffer
       for (int i = 0; i < 6; i++)
