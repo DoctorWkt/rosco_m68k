@@ -104,6 +104,10 @@ static void put_u32be(uint8_t * buf, uint32_t data) {
 static int imagewrite(uint32_t blk, uint8_t * data) {
   int err, cnt;
 
+  // Change the block number to an offset
+  if (m_type == SD_TYPE_HC)
+    blk *= m_blksize;
+
   err= fseek(ifs, blk, SEEK_SET);
   if (err==-1) {
     if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
@@ -122,6 +126,10 @@ static int imagewrite(uint32_t blk, uint8_t * data) {
 // Return 1 if OK, 1 otherwise
 static int imageread(uint32_t blk, uint8_t * data) {
   int err, cnt;
+
+  // Change the block number to an offset
+  if (m_type == SD_TYPE_HC)
+    blk *= m_blksize;
 
   err= fseek(ifs, blk, SEEK_SET);
   if (err==-1) {
@@ -162,18 +170,20 @@ void sdcard_init() {
   m_blksize = 512;
   m_blknext = 0;
   m_bACMD = false;
-  m_type = SD_TYPE_V2;
+  // m_type = SD_TYPE_V2;
   m_type = SD_TYPE_HC;
 }
 
 // Record that there is data ready to send via SPI
 static void send_data(uint16_t count, int new_state) {
 
-#if 0
-  printf("SD data: %d bytes ", count);
-  for (int i = 0; i < count && i < 8; i++)
-    printf("%02x ", m_data[i]);
-  printf("\n");
+#if 1
+  if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+    fprintf(logfh, "SDCARD response: %d bytes ", count);
+    for (int i = 0; i < count && i < 8; i++)
+      fprintf(logfh, "%02x ", m_data[i]);
+    fprintf(logfh, "\n");
+  }
 #endif
   m_out_ptr = 0;
   m_out_count = count;
@@ -424,9 +434,10 @@ static void do_command() {
     case 58:			// CMD58 - READ_OCR
       m_data[0] = 0;
       if (m_type == SD_TYPE_HC) {
-	m_data[1] = 0x40;	// indicate SDHC support
+	// m_data[1] = 0x40;	// indicate SDHC support WKT original
+	m_data[1] = 0xC0;	// indicate SDHC support WKT new
       } else {
-	m_data[1] = 0;
+	m_data[1] = 0x80;
       }
       m_data[2] = 0;
       m_data[3] = 0;
