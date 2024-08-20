@@ -16,6 +16,7 @@
 #include "mapfile.h"
 #include "loglevel.h"
 #include "sdcard.h"
+#include "ch375.h"
 
 // Functions to emulate hardware (DUART, SD card)
 // as well as functions that implement system calls.
@@ -63,6 +64,10 @@
 
 // ATA definitions
 #define ATA_REG_WR_DEVICE_CTL	0x00f8005c
+
+// CH375 addresses
+#define CH375_DATADDR	0x00ff0001	// Send/recv CH375 data
+#define CH375_CMDADDR	0x00ff0003	// Send      CH375 commands
 
 // Other
 #define BERR_FLAG       0x1184
@@ -177,6 +182,10 @@ unsigned int io_read_byte(unsigned int address) {
     cpu_write_byte(BERR_FLAG, 1);
     return (0);
 
+    // CH375
+  case CH375_DATADDR:
+    return(read_ch375_data());
+
     // SPI
   case SPI_INBIT:
     // If there is no data to receive
@@ -232,6 +241,8 @@ unsigned int io_read_long(unsigned int address) {
 }
 
 void io_write_byte(unsigned int address, unsigned int value) {
+  uint8_t result;
+
   switch (address) {
   // UART
   case W_TXBUF_A:		// Send a character on port A
@@ -254,6 +265,17 @@ void io_write_byte(unsigned int address, unsigned int value) {
   case DUART_CTUR:
   case DUART_CTLR:
   case DUART_TBB:		// Writes to port B discarded for now
+    return;
+
+  // CH375: If we get a true result back,
+  // then generate a level 3 interrupt.
+  case CH375_DATADDR:
+    result= send_ch375_data(value & 0xff);
+    if (result) m68k_set_irq(3);
+    return;
+  case CH375_CMDADDR:
+    result= send_ch375_cmd(value & 0xff);
+    if (result) m68k_set_irq(3);
     return;
 
   // SPI
@@ -754,9 +776,11 @@ int interrupt_ack_handler(unsigned int irq) {
     m68k_set_irq(0);
     return DUART_VEC;
   default:
+#if 0
     fprintf(stderr,
 	    "WARN: Unexpected IRQ %d; Autovectoring, but machine will probably lock up!\n",
 	    irq);
+#endif
     return M68K_INT_ACK_AUTOVECTOR;
   }
 }

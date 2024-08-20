@@ -27,6 +27,7 @@ uint8_t *g_rom;			    // ROM memory
 uint8_t zerolong[4]= {0, 0, 0, 0};  // 4 bytes of zeroes
 FILE    *logfh= NULL;		    // Logging filehandle
 int	loglevel= 0;		    // Log level
+char    *ch375file= NULL;	    // CH375 file name
 
 // Static variables
 static char *romfile= "firmware/rosco_m68k.rom";
@@ -307,6 +308,7 @@ void usage(char *name) {
   fprintf(stderr, "  -M mapfile            Load symbols from a map file\n");
   fprintf(stderr, "  -R romfile            Use the file as the ROM image\n");
   fprintf(stderr, "  -S sdcardfile         Attach SD card image file\n");
+  fprintf(stderr, "  -U USB_image          Attach USB image file\n");
   fprintf(stderr, "  -b addr [-b addr2]    Set breakpoint(s) at symbol or dec/$hex addr\n");
   fprintf(stderr, "  -l value              Set dec/$hex bitmap of debug flags\n");
   fprintf(stderr, "  -m                    Start in the monitor\n");
@@ -336,7 +338,7 @@ int main(int argc, char *argv[]) {
   if (brkstr==NULL) err(EXIT_FAILURE, NULL);
 
   // Get the command-line arguments
-  while ((opt = getopt(argc, argv, "L:M:R:S:b:l:m")) != -1) {
+  while ((opt = getopt(argc, argv, "L:M:R:S:U:b:l:m")) != -1) {
     switch (opt) {
     case 'L':
       logfh= fopen(optarg, "w+");
@@ -364,6 +366,9 @@ int main(int argc, char *argv[]) {
       if (ifs==NULL)
 	errx(EXIT_FAILURE, "Unable to open %s\n", optarg);
 
+      break;
+    case 'U':
+      ch375file = strdup(optarg);
       break;
     case 'b':
       // Cache the pointer for now
