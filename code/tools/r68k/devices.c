@@ -775,12 +775,14 @@ int interrupt_ack_handler(unsigned int irq) {
     // DUART timer tick - vector to 0x45
     m68k_set_irq(0);
     return DUART_VEC;
+  case CH375_IRQ:
+    // CH375 interrupt - vector to CH375_VEC (irq3)
+    m68k_set_irq(0);
+    return CH375_VEC;
   default:
-#if 0
     fprintf(stderr,
 	    "WARN: Unexpected IRQ %d; Autovectoring, but machine will probably lock up!\n",
 	    irq);
-#endif
     return M68K_INT_ACK_AUTOVECTOR;
   }
 }

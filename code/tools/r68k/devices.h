@@ -16,3 +16,6 @@ int interrupt_ack_handler(unsigned int irq);
 
 #define DUART_IRQ       4
 #define DUART_VEC       0x45
+
+#define CH375_IRQ	3
+#define CH375_VEC       0x1B
