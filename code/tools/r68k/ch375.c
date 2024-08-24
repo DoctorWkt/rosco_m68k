@@ -107,8 +107,12 @@ uint8_t send_ch375_cmd(uint8_t cmd) {
     bufindex = 0; bufcnt = 0; status = 0; break;
   case DISK_INIT:
     // Try to open the filesystem image. Send an interrupt if successful
+    if (ch375file ==NULL) {
+      fprintf(stderr, "No USB file defined with -U\n");
+      exit(1);
+    }
     if ((disk = fopen(ch375file, "r+")) == NULL) {
-      fprintf(stderr, "Unable to open CH375 file '%s' read-write\n", ch375file);
+      fprintf(stderr, "Unable to open USB file '%s' read-write\n", ch375file);
       exit(1);
     }
     status = USB_INT_SUCCESS; return (1);
