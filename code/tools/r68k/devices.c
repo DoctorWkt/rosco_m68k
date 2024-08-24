@@ -30,13 +30,13 @@
 // have more comments added TODO
 #define UART_BASE	0x00f00001	// More comments here please!!
 #define DUART_MR1A	0x00f00001
-#define R_STATUS_A	0x00f00003	// UART port A status
+#define DUART_SRA	0x00f00003	// UART port A status
 #define	DUART_CSRA	0x00f00003
 #define	DUART_CRA	0x00f00005
-#define R_RXBUF_A	0x00f00007	// Read from UART port A
-#define W_TXBUF_A	0x00f00007	// Write to UART port A
+#define DUART_RBA	0x00f00007	// Read from UART port A
+#define DUART_TBA	0x00f00007	// Write to UART port A
 #define	DUART_ACR	0x00f00009
-#define R_ISR		0x00f0000b
+#define DUART_ISR	0x00f0000b
 #define W_CLKSEL_B	0x00f0000b
 #define DUART_CTUR	0x00f0000d
 #define DUART_CTLR	0x00f0000f
@@ -156,12 +156,12 @@ unsigned int io_read_byte(unsigned int address) {
 
   switch (address) {
     // UART
-  case R_STATUS_A:		// Get the status of port A
+  case DUART_SRA:		// Get the status of port A
     value = 8;			// Port A is writable
     if (check_char())
       value = 9;		// Writeable and ready to read
     return (value);
-  case R_RXBUF_A:		// Read a character from port A
+  case DUART_RBA:		// Read a character from port A
     return (read_char());
   case DUART_IVR:
     return (ivr_value);
@@ -172,7 +172,7 @@ unsigned int io_read_byte(unsigned int address) {
   case R_STOPCNTCMD:
   case R_STARTCNTCMD:
     return (0);
-  case R_ISR:			// Counter interrupt
+  case DUART_ISR:		// Counter interrupt
     return (8);
 
     // Xosera: say that it doesn't exist
@@ -245,7 +245,7 @@ void io_write_byte(unsigned int address, unsigned int value) {
 
   switch (address) {
   // UART
-  case W_TXBUF_A:		// Send a character on port A
+  case DUART_TBA:		// Send a character on port A
     fputc(value & 0xFF, stdout);
     fflush(stdout);
     return;
