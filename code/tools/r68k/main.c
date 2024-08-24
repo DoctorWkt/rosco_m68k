@@ -298,6 +298,17 @@ void print_regs(FILE *fh) {
 	m68ki_cpu.dar[8],  m68ki_cpu.dar[9],  m68ki_cpu.dar[10],
 	m68ki_cpu.dar[11], m68ki_cpu.dar[12], m68ki_cpu.dar[13],
 	m68ki_cpu.dar[14], m68ki_cpu.dar[15]);
+  fprintf(fh, "PC:    %08X  VBR:    %08X                                ",
+		REG_PC, REG_VBR);
+  fprintf(fh, "USP: %08X\n", REG_USP);
+  fprintf(fh, "SFC:        %03X  DFC:         %03X\n", REG_SFC, REG_DFC);
+  fprintf(fh, "Status: mode %c, int %d, %c%c%c%c\n",
+		(FLAG_S) ? 'S' : 'U',
+		FLAG_INT_MASK,
+		(FLAG_N) ? 'N' : ' ',
+		(FLAG_Z) ? 'Z' : ' ',
+		(FLAG_V) ? 'V' : ' ',
+		(FLAG_C) ? 'C' : ' ');
   fprintf(fh, "\n");
 }
 
