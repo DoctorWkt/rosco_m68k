@@ -206,6 +206,11 @@ uint8_t send_ch375_data(uint8_t data) {
     // Read the block if we have the right number of arguments.
     // Send an interrupt as a result.
     if (bufindex == 5) {
+      if (disk==NULL) {
+	fprintf(stderr, "CH375 device not initialised before read\n");
+	exit(1);
+      }
+
       // We can only read one block at a time
       if (buf[4] != 1) {
 	fprintf(stderr, "CH375 can only read 1 block\n"); exit(1);
@@ -233,6 +238,11 @@ uint8_t send_ch375_data(uint8_t data) {
     // Seek to the specified location.
     // Send an interrupt as a result.
     if (bufindex == 5) {
+      if (disk==NULL) {
+	fprintf(stderr, "CH375 device not initialised before write\n");
+	exit(1);
+      }
+
       // We can only write one block at a time
       if (buf[4] != 1) {
 	fprintf(stderr, "CH375 can only write 1 block\n"); exit(1);

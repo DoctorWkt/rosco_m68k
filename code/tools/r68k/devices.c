@@ -36,6 +36,7 @@
 #define DUART_RBA	0x00f00007	// Read from UART port A
 #define DUART_TBA	0x00f00007	// Write to UART port A
 #define	DUART_ACR	0x00f00009
+#define DUART_IMR	0x00f0000a
 #define DUART_ISR	0x00f0000b
 #define W_CLKSEL_B	0x00f0000b
 #define DUART_CTUR	0x00f0000d
@@ -265,6 +266,13 @@ void io_write_byte(unsigned int address, unsigned int value) {
   case DUART_CTUR:
   case DUART_CTLR:
   case DUART_TBB:		// Writes to port B discarded for now
+    return;
+
+  case DUART_IMR:
+    // Turn off the 100Hz heartbeat
+    if ((value & 0xff)==0) {
+      detach_sigalrm();
+    }
     return;
 
   // CH375: If we get a true result back,
