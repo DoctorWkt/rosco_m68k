@@ -17,6 +17,19 @@
 // fcntl.h bits
 #define XO_CREAT  0x200
 
+// fstat.h bits
+#define XT_DIR  1   // Directory
+#define XT_FILE 2   // File
+#define XT_DEV  3   // Device
+
+struct xvstat {
+  int16_t type;     // Type of file
+  int32_t dev;      // File system's disk device
+  uint32_t ino;     // Inode number
+  uint16_t nlink;   // Number of links to file
+  uint32_t size;    // Size of file in bytes
+};
+
 // Get the stack pointer value.
 // Ensure it's in the RAM range.
 static uint32_t get_sp(void) {
@@ -50,6 +63,14 @@ uint32_t uiarg(int off) {
   uint32_t sp= get_sp() + 12 + off;
   uint32_t val= cpu_read_long(sp);
   // printf("uiarg %d is %d 0x%x\n", off, val, val);
+  return(val);
+}
+
+// Signed 32-bit integer argument
+int32_t siarg(int off) {
+  uint32_t sp= get_sp() + 12 + off;
+  int32_t val= (int32_t)cpu_read_long(sp);
+  // printf("siarg %d is %d\n", off, val);
   return(val);
 }
 
@@ -100,6 +121,22 @@ printf("Setting emulator root to %s\n", dirname);
   rfn[1] = realfilename[1]; rfn[1] += strlen(realfilename[1]);
 }
 
+// Copy a native stat struct to an xv6 stat struct
+void copystat(struct stat *hstat, struct xvstat *xstat) {
+  xstat->type= XT_FILE;
+  if ((hstat->st_mode & S_IFMT)==S_IFDIR)
+    xstat->type= XT_DIR;
+  if ((hstat->st_mode & S_IFMT)==S_IFBLK)
+    xstat->type= XT_DEV;
+  if ((hstat->st_mode & S_IFMT)==S_IFCHR)
+    xstat->type= XT_DEV;
+
+  xstat->dev=   hstat->st_dev;
+  xstat->ino=   hstat->st_ino;
+  xstat->nlink= hstat->st_nlink;
+  xstat->size=  hstat->st_size;
+}
+
 
 uint64_t do_xv6syscall(int op, int *islonglong) {
   int64_t result;       // Native syscall result
@@ -112,6 +149,7 @@ uint64_t do_xv6syscall(int op, int *islonglong) {
   size_t cnt;           // Count in bytes
   uint8_t *buf;         // Pointer to buffer
   struct stat hstat;    // Host stat struct;
+  struct xvstat *xstat;	// XV6 stat struct;
 
   errno= 0;             // Start with no syscall errors
   *islonglong= 0;       // Assume a 32-bit result
@@ -122,6 +160,8 @@ uint64_t do_xv6syscall(int op, int *islonglong) {
       putchar(ch);
       result= 0;
       break;
+    case 1:             // _exit
+      exit(siarg(0));
     case 3:             // read
       fd= uiarg(0);
       buf= get_memptr(uiarg(4));
@@ -148,10 +188,7 @@ uint64_t do_xv6syscall(int op, int *islonglong) {
       // Keep the lowest two bits.
       flags=   oflags & 0x3;
       flags |= (oflags & XO_CREAT)   ? O_CREAT : 0;
-printf("Opening %s flags 0x%x mode 0%o ", path, flags, mode);
-
       result= open(path, flags, mode);
-printf("result %ld\n", result);
       break;
     case 6:             // close
       fd= uiarg(0);
@@ -181,8 +218,19 @@ printf("result %ld\n", result);
     case 12:            // chdir
       path= (const char *)xlate_filename((char *)get_memptr(uiarg(0)));
       if (path==NULL) { result=-1; errno=EFAULT; break; }
-printf("chdir to %s\n", path);
       result= chdir(path);
+      break;
+    case 13:            // fstat
+      fd= uiarg(0);
+      xstat= (struct xvstat *)get_memptr(uiarg(4));
+      if (xstat==NULL) { result= -1; errno= EFAULT; break; }
+      result= fstat(fd, &hstat);
+      if (result==-1) break;
+      copystat(&hstat, xstat);
+      break;
+    case 14:            // dup
+      fd= uiarg(0);
+      result= dup(fd);
       break;
     case 15:		// mkdir
       path= (const char *)xlate_filename((char *)get_memptr(uiarg(0)));
