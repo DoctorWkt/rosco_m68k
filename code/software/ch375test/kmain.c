@@ -12,6 +12,8 @@ extern void send_ch375_data(uint8_t cmd);
 extern uint8_t read_ch375_data(void);
 extern uint8_t get_ch375_status(void);
 
+extern void pchar(uint8_t ch);
+
 // The buffer for I/O
 uint8_t buf[512];
 

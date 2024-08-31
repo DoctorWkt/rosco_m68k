@@ -39,9 +39,12 @@ extern "C" {
 
 #include "m68k.h"
 
+#include <stdint.h>
+#include <stdio.h>
 #include <limits.h>
-
 #include <setjmp.h>
+#include <errno.h>
+#include "../xv6syscalls.h"
 
 /* ======================================================================== */
 /* ==================== ARCHITECTURE-DEPENDANT DEFINES ==================== */
@@ -1853,12 +1856,42 @@ static inline void m68ki_exception_trap(uint vector)
 /* Trap#n stacks a 0 frame but behaves like group2 otherwise */
 static inline void m68ki_exception_trapN(uint vector)
 {
-	uint sr = m68ki_init_exception();
-	m68ki_stack_frame_0000(REG_PC, sr, vector);
-	m68ki_jump_vector(vector);
+        uint sr;
+        uint32_t op;
+        int islonglong;
+        uint64_t longresult;
 
-	/* Use up some clock cycles and undo the instruction's cycles */
-	USE_CYCLES(CYC_EXCEPTION[vector] - CYC_INSTRUCTION[REG_IR]);
+	// Emulate xv6 system calls
+        if (vector==43) {
+          // Get the syscall number from D1
+          // and perform the syscall
+          op= m68ki_cpu.dar[M68K_REG_D1];
+          islonglong=0;
+          longresult= do_xv6syscall(op, &islonglong);
+
+          if (islonglong==0) {
+            // The result is 32 bits long.
+            // Save the result in D0 and
+            // the errno in A1.
+            m68ki_cpu.dar[M68K_REG_D0]= (uint32_t)longresult & 0xffffffff;
+            m68ki_cpu.dar[M68K_REG_A1]= errno;
+          } else {
+            // Save the result in D0 and
+            // the errno in A1.
+            // Save the high half in D1.
+            m68ki_cpu.dar[M68K_REG_D0]= longresult >> 32;
+            m68ki_cpu.dar[M68K_REG_D1]= (uint32_t)longresult & 0xffffffff;
+            m68ki_cpu.dar[M68K_REG_A1]= errno;
+          }
+          return;
+        }
+
+        sr = m68ki_init_exception();
+        m68ki_stack_frame_0000(REG_PC, sr, vector);
+        m68ki_jump_vector(vector);
+
+        /* Use up some clock cycles and undo the instruction's cycles */
+        USE_CYCLES(CYC_EXCEPTION[vector] - CYC_INSTRUCTION[REG_IR]);
 }
 
 /* Exception for trace mode */

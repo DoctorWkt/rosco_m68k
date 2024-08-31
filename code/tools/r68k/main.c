@@ -10,16 +10,23 @@
 #include <fcntl.h>
 #include <time.h>
 #include <sys/time.h>
+#include <endian.h>
 #include <unistd.h>
 #include <termios.h>
 #include <err.h>
 #include "musashi/m68k.h"
 #include "musashi/m68kcpu.h"
+#include "main.h"
 #include "devices.h"
 #include "loglevel.h"
 #include "mapfile.h"
 #include "monitor.h"
 #include "sdcard.h"
+
+// If the -a option is not specified,
+// executables get loaded at this address
+// and execution starts in the ROM.
+#define DEFAULT_ADDRESS 0x4000
 
 // Global variables
 uint8_t *g_ram;			    // RAM memory
@@ -28,6 +35,7 @@ uint8_t zerolong[4]= {0, 0, 0, 0};  // 4 bytes of zeroes
 FILE    *logfh= NULL;		    // Logging filehandle
 int	loglevel= 0;		    // Log level
 char    *ch375file= NULL;	    // CH375 file name
+uint32_t start_address= DEFAULT_ADDRESS;
 
 // Static variables
 static char *romfile= "firmware/rosco_m68k.rom";
@@ -63,16 +71,6 @@ void ReadBinaryData(const char *filename, uint8_t * base) {
   fclose(in);
 }
 
-// Size of ROM/RAM and their locations
-// in the MC68010 address space. Also
-// the base of the I/O area.
-#define RAM_SIZE	1024 * 1024
-#define RAM_BASE	0x00000000
-#define ROM_SIZE	1024 * 1024
-#define ROM_BASE	0x00e00000
-
-#define IO_BASE		0x00f00000
-
 // Allocate memory for ROM and RAM, and
 // read in the ROM image.
 void initialise_memory(const char *romfilename) {
@@ -88,9 +86,19 @@ void initialise_memory(const char *romfilename) {
 
   ReadBinaryData(romfilename, g_rom);
 
-  // Copy eight bytes from the start of ROM to RAM
+  // If we still have a DEFAULT_ADDRESS,
+  // copy eight bytes from the start of ROM to RAM
   // to give the CPU the initial PC and SP values
-  memcpy(g_ram, g_rom, 8);
+  if (start_address == DEFAULT_ADDRESS)
+    memcpy(g_ram, g_rom, 8);
+  else {
+    // We start directly in the executable
+    // without running any ROM code
+    uint32 be_start= htobe32(start_address);
+    uint32 be_stkptr= htobe32(RAM_SIZE);
+    memcpy(g_ram,       (void *)&be_stkptr, 4);
+    memcpy(&(g_ram[4]), (void *)&be_start,  4);
+  }
 }
 
 // Given an address, return a pointer to the
@@ -320,6 +328,7 @@ void usage(char *name) {
   fprintf(stderr, "  -R romfile            Use the file as the ROM image\n");
   fprintf(stderr, "  -S sdcardfile         Attach SD card image file\n");
   fprintf(stderr, "  -U USB_image          Attach USB image file\n");
+  fprintf(stderr, "  -a addr               Load executable at dec/$hex addr\n");
   fprintf(stderr, "  -b addr [-b addr2]    Set breakpoint(s) at symbol or dec/$hex addr\n");
   fprintf(stderr, "  -l value              Set dec/$hex bitmap of debug flags\n");
   fprintf(stderr, "  -m                    Start in the monitor\n");
@@ -349,7 +358,7 @@ int main(int argc, char *argv[]) {
   if (brkstr==NULL) err(EXIT_FAILURE, NULL);
 
   // Get the command-line arguments
-  while ((opt = getopt(argc, argv, "L:M:R:S:U:b:l:m")) != -1) {
+  while ((opt = getopt(argc, argv, "L:M:R:S:U:a:b:l:m")) != -1) {
     switch (opt) {
     case 'L':
       logfh= fopen(optarg, "w+");
@@ -380,6 +389,9 @@ int main(int argc, char *argv[]) {
       break;
     case 'U':
       ch375file = strdup(optarg);
+      break;
+    case 'a':
+      start_address= parse_addr(optarg, NULL);
       break;
     case 'b':
       // Cache the pointer for now
@@ -416,10 +428,10 @@ int main(int argc, char *argv[]) {
   // Set up the memory
   initialise_memory(romfile);
 
-  // Load the program at address 0x40000 in RAM.
+  // Load the program at the start address in RAM.
   // Only do this if we actually have a filename.
   if (optind<argc)
-    ReadBinaryData(argv[optind], &(g_ram[0x40000]));
+    ReadBinaryData(argv[optind], &(g_ram[start_address]));
 
   // Initialise the terminal
   init_term();
@@ -427,6 +439,12 @@ int main(int argc, char *argv[]) {
 
   // Initialise the SD card variables
   sdcard_init();
+
+  // Set the XV6 root
+  if (getenv("XV6ROOT") != NULL)
+    set_emulator_root(getenv("XV6ROOT"));
+  else
+    set_emulator_root("");
 
   // Initialise the CPU
   m68k_set_cpu_type(M68K_CPU_TYPE_68010);

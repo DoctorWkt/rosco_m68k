@@ -5,6 +5,9 @@ CHDATARD  equ	$FF0001
 CHDATAWR  equ	$FF0001
 CHCMDWR   equ	$FF0003
 
+DUART_SRA equ   $F00003
+DUART_TBA equ   $F00007
+
 ; Address of the IRQ3 vector
 IRQ3_VECTOR equ $6C
 
@@ -65,4 +68,15 @@ read_ch375_data::
 ; CH375_STATUS memory location
 get_ch375_status::
 	move.b CH375_STATUS,D0
+	rts
+
+; Print byte to UART A. This isn't
+; used by the CH375 code, I just wanted
+; to see if it worked!
+pchar::
+	move.b 7(A7),D0
+.BUFF_WAIT:
+	btst.b  #3,DUART_SRA
+	beq.s   .BUFF_WAIT
+	move.b  D0,DUART_TBA
 	rts
