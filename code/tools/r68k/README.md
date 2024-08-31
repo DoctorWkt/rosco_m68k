@@ -1,6 +1,6 @@
 # r68k
 
-`r68k` provides two forms of emulation:
+`r68k` provides three forms of emulation:
 
 1. It emulates many of the ROM system calls (traps 13, 14 and 15).
    Using the firmware in the `firmware/` directory, you can run
@@ -11,7 +11,14 @@
 
 2. `r68k` also emulates the DUART hardware including the 100Hz clock
    tick and the SPI bit-banged SD card. Using the real `rosco_m68k.rom`
-   you can boot the system up as if it was the real hardware.
+   (with the `-S` command-line option) you can boot the system up as if
+   it was the real hardware.
+
+3. `r68k` emulates many of the `xv6` "trap 11" system calls. If you
+   use the `-a` command-line option to set the start address, then
+   the ROM won't get involved. Instead, the `xv6` executable starts
+   at the given start address (usually $18000) and any `xv6` system
+   calls will be emulated by `r68k`.
 
 ## Build it
 
@@ -45,6 +52,7 @@ Flags are:
   -M mapfile            Load symbols from a map file
   -R romfile            Use the file as the ROM image
   -S sdcardfile         Attach SD card image file
+  -a addr               Load executable at dec/$hex addr 
   -b addr [-b addr2]    Set breakpoint(s) at symbol or dec/$hex addr
   -l value              Set dec/$hex bitmap of debug flags
   -m                    Start in the monitor
