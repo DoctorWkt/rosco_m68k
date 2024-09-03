@@ -262,6 +262,7 @@ uint64_t do_xv6syscall(int op, int *islonglong) {
   struct stat hstat;		// Host stat struct;
   struct xvstat *xstat;		// XV6 stat struct;
   uint32_t argc, argv;		// argc and argv from spawn
+  int offset, whence;		// lseek arguments
 
   errno = 0;			// Start with no syscall errors
   *islonglong = 0;		// Assume a 32-bit result
@@ -401,6 +402,12 @@ uint64_t do_xv6syscall(int op, int *islonglong) {
       read(STDIN_FILENO, &ch, 1);
     }
     result= ch;
+    break;
+  case 18:			// lseek
+    fd = uiarg(0);
+    offset= siarg(4);
+    whence= siarg(8);
+    result= lseek(fd, offset, whence);
     break;
 
   default:
