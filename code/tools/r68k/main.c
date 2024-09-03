@@ -26,7 +26,7 @@
 // If the -a option is not specified,
 // executables get loaded at this address
 // and execution starts in the ROM.
-#define DEFAULT_ADDRESS 0x4000
+#define DEFAULT_ADDRESS 0x40000
 
 // Global variables
 uint8_t *g_ram;			    // RAM memory
@@ -36,6 +36,7 @@ FILE    *logfh= NULL;		    // Logging filehandle
 int	loglevel= 0;		    // Log level
 char    *ch375file= NULL;	    // CH375 file name
 uint32_t start_address= DEFAULT_ADDRESS;
+int	is_xv6_binary=0;	    // Are we running an xv6 binary?
 
 // Static variables
 static char *romfile= "firmware/rosco_m68k.rom";
@@ -98,6 +99,7 @@ void initialise_memory(const char *romfilename) {
     uint32 be_stkptr= htobe32(RAM_SIZE);
     memcpy(g_ram,       (void *)&be_stkptr, 4);
     memcpy(&(g_ram[4]), (void *)&be_start,  4);
+    is_xv6_binary=1;
   }
 }
 

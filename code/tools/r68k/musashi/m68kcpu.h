@@ -46,6 +46,8 @@ extern "C" {
 #include <errno.h>
 #include "../xv6syscalls.h"
 
+extern int is_xv6_binary;
+
 /* ======================================================================== */
 /* ==================== ARCHITECTURE-DEPENDANT DEFINES ==================== */
 /* ======================================================================== */
@@ -1861,8 +1863,9 @@ static inline void m68ki_exception_trapN(uint vector)
         int islonglong;
         uint64_t longresult;
 
-	// Emulate xv6 system calls
-        if (vector==43) {
+	// Emulate xv6 system calls when we
+	// are running an xv6 binary
+        if (is_xv6_binary && vector==43) {
           // Get the syscall number from D1
           // and perform the syscall
           op= m68ki_cpu.dar[M68K_REG_D1];
