@@ -11,9 +11,9 @@ at these I/O addresses:
 
 ```
 ; CH375 I/O addresses
-CHDATARD  equ   $FF0001
-CHDATAWR  equ   $FF0001
-CHCMDWR   equ   $FF0003
+CHDATARD  equ   $FFF001
+CHDATAWR  equ   $FFF001
+CHCMDWR   equ   $FFF003
 ```
 
 and will generate an auto-vectored IRQ3 interrupt.

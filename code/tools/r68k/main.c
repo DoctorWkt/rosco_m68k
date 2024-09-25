@@ -1,6 +1,11 @@
 // Command-line handling, system initialisation
 // and memory decoding for the r68k emulator.
 
+// I can't get musashi to detect misaligned address errors.
+// So turn on/off this define to detect them here.
+//
+#define DETECT_ADDR_ERROR 1
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdarg.h>
@@ -154,10 +159,20 @@ unsigned int cpu_read_byte(unsigned int address) {
   return READ_BYTE(base);
 }
 
+void address_err(unsigned int address) {
+  fprintf(stderr, "address err at 0x%x\n", address);
+  print_regs(stderr);
+  exit(1);
+}
+
 unsigned int cpu_read_word(unsigned int address) {
   uint8_t *base= baseAddress(address);
 
   if (address >= IO_BASE) return(io_read_word(address));
+#ifdef DETECT_ADDR_ERROR
+  if (address & 0x1)
+    address_err(address);
+#endif
   base= baseAddress(address);
   return READ_WORD(base);
 }
@@ -166,6 +181,10 @@ unsigned int cpu_read_long(unsigned int address) {
   uint8_t *base;
 
   if (address >= IO_BASE) return(io_read_long(address));
+#ifdef DETECT_ADDR_ERROR
+  if (address & 0x1)
+    address_err(address);
+#endif
   base= baseAddress(address);
   return READ_LONG(base);
 }
@@ -204,6 +223,10 @@ void cpu_write_word(unsigned int address, unsigned int value) {
   uint8_t *base;
 
   if (address >= IO_BASE) { io_write_word(address, value); return; }
+#ifdef DETECT_ADDR_ERROR
+  if (address & 0x1)
+    address_err(address);
+#endif
   base= baseAddress(address);
   if (address >= RAM_BASE + RAM_SIZE) {
     if (logfh != NULL && (loglevel & LOG_BUSERROR) == LOG_BUSERROR) {
@@ -223,6 +246,10 @@ void cpu_write_long(unsigned int address, unsigned int value) {
   uint8_t *base;
 
   if (address >= IO_BASE) { io_write_long(address, value); return; }
+#ifdef DETECT_ADDR_ERROR
+  if (address & 0x1)
+    address_err(address);
+#endif
   base= baseAddress(address);
   if (address >= RAM_BASE + RAM_SIZE) {
     if (logfh != NULL && (loglevel & LOG_BUSERROR) == LOG_BUSERROR) {
@@ -249,7 +276,7 @@ void set_timer() {
   itv.it_interval.tv_sec = 0;
   itv.it_interval.tv_usec = 0;
   itv.it_value.tv_sec = 0;
-  itv.it_value.tv_usec = 1000;
+  itv.it_value.tv_usec = 10000;
   setitimer(ITIMER_REAL, &itv, NULL);
 }
 

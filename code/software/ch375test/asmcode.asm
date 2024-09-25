@@ -1,9 +1,9 @@
 	section .text
 
 ; CH375 I/O addresses
-CHDATARD  equ	$FF0001
-CHDATAWR  equ	$FF0001
-CHCMDWR   equ	$FF0003
+CHDATARD  equ	$FFF001
+CHDATAWR  equ	$FFF001
+CHCMDWR   equ	$FFF003
 
 DUART_SRA equ   $F00003
 DUART_TBA equ   $F00007

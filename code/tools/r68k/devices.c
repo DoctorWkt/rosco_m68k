@@ -67,8 +67,8 @@
 #define ATA_REG_WR_DEVICE_CTL	0x00f8005c
 
 // CH375 addresses
-#define CH375_DATADDR	0x00ff0001	// Send/recv CH375 data
-#define CH375_CMDADDR	0x00ff0003	// Send      CH375 commands
+#define CH375_DATADDR	0x00fff001	// Send/recv CH375 data
+#define CH375_CMDADDR	0x00fff003	// Send      CH375 commands
 
 // Other
 #define BERR_FLAG       0x1184
