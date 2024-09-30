@@ -34,12 +34,14 @@
 #define DEFAULT_ADDRESS 0x40000
 
 // Global variables
-uint8_t *g_ram;			    // RAM memory
 uint8_t *g_rom;			    // ROM memory
+uint8_t *g_ram;			    // Base RAM memory
+uint8_t *g_exp;			    // Expansion RAM memory
 uint8_t zerolong[4]= {0, 0, 0, 0};  // 4 bytes of zeroes
 FILE    *logfh= NULL;		    // Logging filehandle
 int	loglevel= 0;		    // Log level
 char    *ch375file= NULL;	    // CH375 file name
+uint32_t base_register= 0;	    // Base register for expansion RAM
 uint32_t start_address= DEFAULT_ADDRESS;
 int	is_xv6_binary=0;	    // Are we running an xv6 binary?
 
@@ -61,29 +63,31 @@ void close_logfile() {
   }
 }
 
-// Given a filename and a base address, open and
+// Given a filename and an address, open and
 // load the binary data in the file at that address
-void ReadBinaryData(const char *filename, uint8_t * base) {
+void ReadBinaryData(const char *filename, uint8_t * addr) {
   FILE *in;
   int cnt;
 
   in = fopen(filename, "r");
   if (in == NULL) errx(EXIT_FAILURE, "Cannot open %s", filename);
   while (1) {
-    cnt = fread(base, 1, 4096, in);
+    cnt = fread(addr, 1, 4096, in);
     if (cnt <= 0) break;
-    base += cnt;
+    addr += cnt;
   }
   fclose(in);
 }
 
-// Allocate memory for ROM and RAM, and
-// read in the ROM image.
+// Allocate memory for ROM and both RAMs,
+// and read in the ROM image.
 void initialise_memory(const char *romfilename) {
   g_rom = (uint8_t *) calloc(1, ROM_SIZE);
   if (g_rom == NULL) err(EXIT_FAILURE, NULL);
   g_ram = (uint8_t *) calloc(1, RAM_SIZE);
   if (g_ram == NULL) err(EXIT_FAILURE, NULL);
+  g_exp = (uint8_t *) calloc(1, EXP_SIZE);
+  if (g_exp == NULL) err(EXIT_FAILURE, NULL);
 
   if (logfh != NULL && (loglevel & LOG_MEMACCESS) == LOG_MEMACCESS) {
     fprintf(logfh, "Initialized with %d bytes RAM and %d bytes ROM\n",
@@ -108,31 +112,57 @@ void initialise_memory(const char *romfilename) {
   }
 }
 
-// Given an address, return a pointer to the
-// location in g_ram or g_rom which is the
-// base of this address
-uint8_t * baseAddress(uint32_t address) {
+// Given an m68k address, return a pointer to the
+// location in g_ram, g_rom or g_exp which is
+// the location of this address in the emulator.
+// If the m68k address isn't ROM or RAM, return NULL.
+uint8_t * emuAddress(uint32_t address, int iswrite) {
+
   // Note: -Wall complains about if (address >= RAM_BASE
   // buf if RAM_BASE is ever >0 then we should put it back in.
   if (address < RAM_BASE + RAM_SIZE) {
+
     if (logfh != NULL && (loglevel & LOG_MEMACCESS) == LOG_MEMACCESS) {
-      fprintf(logfh, "RAM Relative address is: 0x%x\n", address);
+      fprintf(logfh, "RAM relative address is: 0x%x\n", address);
     }
     return(&(g_ram[address]));
+
   } else if (address >= ROM_BASE && address < ROM_BASE + ROM_SIZE) {
+
+    // If it's a write, return NULL
+    if (iswrite) {
+      if (logfh != NULL && (loglevel & LOG_MEMACCESS) == LOG_MEMACCESS) {
+        fprintf(logfh, "ROM write to address 0x%x\n", address);
+      }
+      return(NULL);
+    }
+
     if (logfh != NULL && (loglevel & LOG_MEMACCESS) == LOG_MEMACCESS) {
-      fprintf(logfh, "ROM Relative address is: 0x%x\n", address - ROM_BASE);
+      fprintf(logfh, "ROM relative address is: 0x%x\n", address - ROM_BASE);
     }
     return(&(g_rom[address - ROM_BASE]));
-  } else {
-    if (logfh != NULL && (loglevel & LOG_BUSERROR) == LOG_BUSERROR) {
-      fprintf(logfh, "BUSERROR at address 0x%X\n", address);
+
+  } else if (address >= EXP_BASE && address < EXP_BASE + EXP_SIZE) {
+
+    // Expansion RAM. Add on the base register value and
+    // truncate it to be within EXP_BASE .. EXP_BASE + EXP_SIZE - 1
+    uint32_t physaddr= address + base_register;
+    if (physaddr >= EXP_BASE + EXP_SIZE)
+      physaddr -= EXP_BASE;
+
+    if (logfh != NULL && (loglevel & LOG_MEMACCESS) == LOG_MEMACCESS) {
+      fprintf(logfh, "EXPRAM address 0x%x + basereg 0x%x => physaddr 0x%x\n",
+		address, base_register, physaddr);
+      fprintf(logfh, "EXPRAM relative address is: 0x%x\n", physaddr - EXP_BASE);
     }
-    // Return a pointer to a word full of zeroes
-    return(zerolong);
+    return(&(g_exp[physaddr - EXP_BASE]));
+
   }
 
-  return(NULL);		// Keep -Wall happy
+  if (logfh != NULL && (loglevel & LOG_BUSERROR) == LOG_BUSERROR) {
+      fprintf(logfh, "BUSERROR at address 0x%X\n", address);
+  }
+  return(NULL);
 }
 
 // Read/write macros
@@ -151,12 +181,15 @@ uint8_t * baseAddress(uint32_t address) {
 
 // Functions to read data from memory. It used to be so
 // neat and tidy before we implemented the I/O space, sigh!
+// When emuAddr() returns NULL, for now we just
+// return a zero value on reads.
 unsigned int cpu_read_byte(unsigned int address) {
-  uint8_t *base;
+  uint8_t *emuaddr;
 
   if (address >= IO_BASE) return(io_read_byte(address));
-  base= baseAddress(address);
-  return READ_BYTE(base);
+  emuaddr= emuAddress(address,0);
+  if (emuaddr==NULL) return(0);
+  return READ_BYTE(emuaddr);
 }
 
 void address_err(unsigned int address) {
@@ -166,102 +199,86 @@ void address_err(unsigned int address) {
 }
 
 unsigned int cpu_read_word(unsigned int address) {
-  uint8_t *base= baseAddress(address);
+  uint8_t *emuaddr;
 
   if (address >= IO_BASE) return(io_read_word(address));
 #ifdef DETECT_ADDR_ERROR
-  if (address & 0x1)
-    address_err(address);
+  if (address & 0x1) address_err(address);
 #endif
-  base= baseAddress(address);
-  return READ_WORD(base);
+
+  emuaddr= emuAddress(address,0);
+  if (emuaddr==NULL) return(0);
+  return READ_WORD(emuaddr);
 }
 
 unsigned int cpu_read_long(unsigned int address) {
-  uint8_t *base;
+  uint8_t *emuaddr;
 
   if (address >= IO_BASE) return(io_read_long(address));
 #ifdef DETECT_ADDR_ERROR
-  if (address & 0x1)
-    address_err(address);
+  if (address & 0x1) address_err(address);
 #endif
-  base= baseAddress(address);
-  return READ_LONG(base);
+
+  emuaddr= emuAddress(address,0);
+  if (emuaddr==NULL) return(0);
+  return READ_LONG(emuaddr);
 }
 
 unsigned int cpu_read_word_dasm(unsigned int address) {
-  uint8_t *base= baseAddress(address);
-  return READ_WORD(base);
+  uint8_t *emuaddr= emuAddress(address,0);
+  if (emuaddr==NULL) return(0);
+  return READ_WORD(emuaddr);
 }
 
 unsigned int cpu_read_long_dasm(unsigned int address) {
-  uint8_t *base= baseAddress(address);
-  return READ_LONG(base);
+  uint8_t *emuaddr= emuAddress(address,0);
+  if (emuaddr==NULL) return(0);
+  return READ_LONG(emuaddr);
 }
 
-// Write data to memory
+// Write data to memory. We do nothing when
+// emuAddr() returns NULL.
 void cpu_write_byte(unsigned int address, unsigned int value) {
-  uint8_t *base;
+  uint8_t *emuaddr;
 
   if (address >= IO_BASE) { io_write_byte(address, value); return; }
-  base= baseAddress(address);
-  if (address >= RAM_BASE + RAM_SIZE) {
-    if (logfh != NULL && (loglevel & LOG_BUSERROR) == LOG_BUSERROR) {
-      fprintf(logfh, "Attempted to write %02x to RAM address %08x\n",
-					value & 0xff, address);
-    }
-  } else {
-    WRITE_BYTE(base, value);
-    if (is_breakpoint(address, BRK_WRITE)) {
-          write_brkpt= 1;
-          printf("Write at $%04X\n", address);
-    }
+  emuaddr= emuAddress(address,1);
+  if (emuaddr==NULL) return;
+  WRITE_BYTE(emuaddr, value);
+  if (is_breakpoint(address, BRK_WRITE)) {
+    write_brkpt= 1; printf("Write at $%04X\n", address);
   }
 }
 
 void cpu_write_word(unsigned int address, unsigned int value) {
-  uint8_t *base;
+  uint8_t *emuaddr;
 
   if (address >= IO_BASE) { io_write_word(address, value); return; }
 #ifdef DETECT_ADDR_ERROR
   if (address & 0x1)
     address_err(address);
 #endif
-  base= baseAddress(address);
-  if (address >= RAM_BASE + RAM_SIZE) {
-    if (logfh != NULL && (loglevel & LOG_BUSERROR) == LOG_BUSERROR) {
-      fprintf(logfh, "Attempted to write %04x to RAM address %08x\n",
-						value & 0xffff, address);
-    }
-  } else {
-    WRITE_WORD(base, value);
-    if (is_breakpoint(address, BRK_WRITE)) {
-          write_brkpt= 1;
-          printf("Write at $%04X\n", address);
-    }
+  emuaddr= emuAddress(address,1);
+  if (emuaddr==NULL) return;
+  WRITE_WORD(emuaddr, value);
+  if (is_breakpoint(address, BRK_WRITE)) {
+    write_brkpt= 1; printf("Write at $%04X\n", address);
   }
 }
 
 void cpu_write_long(unsigned int address, unsigned int value) {
-  uint8_t *base;
+  uint8_t *emuaddr;
 
   if (address >= IO_BASE) { io_write_long(address, value); return; }
 #ifdef DETECT_ADDR_ERROR
   if (address & 0x1)
     address_err(address);
 #endif
-  base= baseAddress(address);
-  if (address >= RAM_BASE + RAM_SIZE) {
-    if (logfh != NULL && (loglevel & LOG_BUSERROR) == LOG_BUSERROR) {
-      fprintf(logfh, "Attempted to write %08x to RAM address %08x\n",
-							value, address);
-    }
-  } else {
-    WRITE_LONG(base, value);
-    if (is_breakpoint(address, BRK_WRITE)) {
-          write_brkpt= 1;
-          printf("Write at $%04X\n", address);
-    }
+  emuaddr= emuAddress(address,1);
+  if (emuaddr==NULL) return;
+  WRITE_LONG(emuaddr, value);
+  if (is_breakpoint(address, BRK_WRITE)) {
+    write_brkpt= 1; printf("Write at $%04X\n", address);
   }
 }
 

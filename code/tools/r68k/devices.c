@@ -70,6 +70,9 @@
 #define CH375_DATADDR	0x00fff001	// Send/recv CH375 data
 #define CH375_CMDADDR	0x00fff003	// Send      CH375 commands
 
+//  Expanion RAM base register address
+#define BASE_REG	0x00ffe001	// Set the base register
+
 // Other
 #define BERR_FLAG       0x1184
 
@@ -284,6 +287,14 @@ void io_write_byte(unsigned int address, unsigned int value) {
   case CH375_CMDADDR:
     result= send_ch375_cmd(value & 0xff);
     if (result) m68k_set_irq(3);
+    return;
+
+  // Expansion RAM base register
+  case BASE_REG:
+    base_register= (value & 0xf) << 16;
+    if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
+      fprintf(logfh, "EXPRAM base register set to 0x%x\n", base_register);
+    }
     return;
 
   // SPI

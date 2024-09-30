@@ -123,7 +123,7 @@ Symbols + offset, e.g. _printf+23, _printf+$100
 
 ## Emulating the Real Hardware
 
-All of the above assumes that you are using the firnware in the
+All of the above assumes that you are using the firmware in the
 `firmware/` directory which sends system calls to `r68k`.
 
 If, however, you want to run an emulation of real hardware, then
@@ -153,6 +153,28 @@ Loaded 32668 bytes in ~2 sec.
 
 followed by the execution of whatever binary you placed on the SD card
 with the name `ROSCODE1.BIN`.
+
+## Emulated Memory and the Base Register
+
+`r68k` emulates 1M of onboard RAM starting at $00000000, 1M of ROM starting
+at $00E00000, and 1M of expansion RAM starting at $00100000.
+
+`r68k` also emulates a "base register" for the expansion RAM. This is a 4-bit
+I/O register (initially zero) which can wb written to at address $00FFE001.
+
+The base register's value, multiplied by 64K, is then added to any expansion
+RAM address. This allows the "base" of the expansion RAM to be positioned
+at any of sixteen 64K-spaced locations.
+
+For example, with the base register set to 0x0, expansion memory address
+$00100124 becomes $00100124 + $0000000 => $00100124. But if the base
+register was set to 0x4, then address $00100124 becomes
+$00100124 + $0040000 => $00140124.
+
+The purpose of the base register is to allow an operating system to load
+multiple programs into the expansion RAM, each starting at a different
+64K position. By setting the base register suitably, each program will
+think that it starts at $00100000 instead of its actual physical location.
 
 ## Example Script to Build a Bootable SD Card
 

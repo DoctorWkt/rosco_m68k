@@ -1,16 +1,19 @@
 // main.c
 
-// Size of ROM/RAM and their locations
-// in the MC68010 address space. Also
-// the base of the I/O area.
+// Size of ROM, base RAM and expandion RAM
+// and their locations in the MC68010 address
+// space. Also the base of the I/O area.
 #define RAM_SIZE        1024 * 1024
 #define RAM_BASE        0x00000000
 #define ROM_SIZE        1024 * 1024
 #define ROM_BASE        0x00e00000
+#define EXP_SIZE	1024 * 1024
+#define EXP_BASE        0x00100000
 
 #define IO_BASE         0x00f00000
 
 extern uint8_t *g_ram;		// RAM memory
+extern uint32_t base_register;	// Expansion RAM base register
 
 unsigned int cpu_read_byte(unsigned int address);
 unsigned int cpu_read_word(unsigned int address);
