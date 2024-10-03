@@ -279,14 +279,14 @@ void io_write_byte(unsigned int address, unsigned int value) {
     return;
 
   // CH375: If we get a true result back,
-  // then generate a level 3 interrupt.
+  // then generate a level 5 interrupt.
   case CH375_DATADDR:
     result= send_ch375_data(value & 0xff);
-    if (result) m68k_set_irq(3);
+    if (result) m68k_set_irq(CH375_IRQ);
     return;
   case CH375_CMDADDR:
     result= send_ch375_cmd(value & 0xff);
-    if (result) m68k_set_irq(3);
+    if (result) m68k_set_irq(CH375_IRQ);
     return;
 
   // Expansion RAM base register
@@ -795,7 +795,7 @@ int interrupt_ack_handler(unsigned int irq) {
     m68k_set_irq(0);
     return DUART_VEC;
   case CH375_IRQ:
-    // CH375 interrupt - vector to CH375_VEC (irq3)
+    // CH375 interrupt - vector to CH375_VEC (irq5)
     m68k_set_irq(0);
     return CH375_VEC;
   default:

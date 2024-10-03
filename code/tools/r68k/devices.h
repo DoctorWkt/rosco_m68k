@@ -15,7 +15,7 @@ int illegal_instruction_handler(int opcode);
 int interrupt_ack_handler(unsigned int irq);
 
 #define DUART_IRQ       4
-#define DUART_VEC       0x45
+#define DUART_VEC       69
 
-#define CH375_IRQ	3
-#define CH375_VEC       0x1B
+#define CH375_IRQ	5
+#define CH375_VEC       29

@@ -6,7 +6,7 @@
 
 // These are in the asmcode.asm file
 extern void cpu_delay(int ms);
-extern void irq3_install();
+extern void irq5_install();
 extern void send_ch375_cmd(uint8_t cmd);
 extern void send_ch375_data(uint8_t cmd);
 extern uint8_t read_ch375_data(void);
@@ -149,7 +149,8 @@ void kmain() {
   printf("About to initialise the CH375\n");
 
   // Install the IRQ3 handler
-  irq3_install();
+  irq5_install();
+  printf("All interrupts now enabled\n");
 
   // Send the reset command and wait 50mS
   send_ch375_cmd(CMD_RESET_ALL);
@@ -160,6 +161,7 @@ void kmain() {
   // update the CH375 status in memory.
   send_ch375_cmd(CMD_SET_USB_MODE);
   send_ch375_data(6);
+  printf("USB mode 6 now set\n");
 
   // Print out the CH375 status.
   // We expect to get USB_INT_CONNECT
