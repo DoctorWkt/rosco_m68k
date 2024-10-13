@@ -4,10 +4,10 @@ This code tests the interface to the CH375 USB block
 device by initialising it, reading one block and
 writing another block.
 
-At present (end August 2024) there is no actual
-working CH375 hardware interface with the `rosco_v2`
-board. This code assumes that the CH375 will live
-at these I/O addresses:
+The expansion board with the CH375 interface is documented
+[here](https://github.com/DoctorWkt/xv6-rosco-r2/tree/ch375/hardware).
+
+The CH375 lives at these I/O addresses:
 
 ```
 ; CH375 I/O addresses
@@ -16,9 +16,9 @@ CHDATAWR  equ   $FFF001
 CHCMDWR   equ   $FFF003
 ```
 
-and will generate an auto-vectored IRQ3 interrupt.
-Warren's rewritten `r68k` emulator has a working
-emulation of the CH375 device at these addresses.
+and generate an auto-vectored IRQ5 interrupt.
+Warren's [rewritten `r68k` emulator](https://github.com/DoctorWkt/rosco_m68k/tree/wkt_r68k/code/tools/r68k)
+has a working emulation of the CH375 device at these addresses.
 
 You can test the code as follows:
 
