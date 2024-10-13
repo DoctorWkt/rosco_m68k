@@ -5,15 +5,9 @@ CHDATARD  equ	$FFF001
 CHDATAWR  equ	$FFF001
 CHCMDWR   equ	$FFF003
 
-DUART_SRA equ   $F00003
-DUART_TBA equ   $F00007
-
 ; Address of the IRQ5 vector
-; the uninitialised interrupt vector
 ; and the spurious interrupt vector
 IRQ5_VECTOR equ $74
-UINIT_VECTOR equ $3C
-SPUR_VECTOR equ $60
 
 ; Location where the interrupt handler
 ; stores the CH375 status byte
@@ -32,21 +26,10 @@ L1:	subq.l #1,D0
 	bne.s  L1
 	rts
 
-; Print 'x' to UART A.
-pcharx::
-.BUFF_WAIT:
-	btst.b  #3,DUART_SRA
-	beq.s   .BUFF_WAIT
-	move.b  #120,DUART_TBA
-	rts
-
 ; This is the interrupt handler for the CH375.
 ; Send a CMD_GET_STATUS to the device,
 ; read a byte of data and save it in the
 ; CH375_STATUS location.
-;
-; Also print 'x' on the terminal so we know if
-; we even saw the interrupt.
 irq5_handler::
 	move.b #CMD_GET_STATUS,CHCMDWR
 	move.b CHDATARD,CH375_STATUS
@@ -81,7 +64,10 @@ read_ch375_data::
 	rts
 
 ; Get the CH375 status from the
-; CH375_STATUS memory location
+; CH375_STATUS memory location.
+; Loop until it is not $FF
 get_ch375_status::
 	move.b CH375_STATUS,D0
+	cmpi.b #$FF,D0
+	beq    get_ch375_status
 	rts

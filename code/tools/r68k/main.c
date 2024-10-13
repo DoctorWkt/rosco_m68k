@@ -355,7 +355,8 @@ void print_regs(FILE *fh) {
   fprintf(fh, "PC:    %08X  VBR:    %08X                                ",
 		REG_PC, REG_VBR);
   fprintf(fh, "USP: %08X\n", REG_USP);
-  fprintf(fh, "SFC:        %03X  DFC:         %03X\n", REG_SFC, REG_DFC);
+  fprintf(fh, "SFC:        %03X  DFC:         %03X  Basereg %d\n",
+		REG_SFC, REG_DFC, base_register >> 16);
   fprintf(fh, "Status: mode %c, int %d, %c%c%c%c\n",
 		(FLAG_S) ? 'S' : 'U',
 		FLAG_INT_MASK,

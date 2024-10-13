@@ -291,6 +291,8 @@ void io_write_byte(unsigned int address, unsigned int value) {
 
   // Expansion RAM base register
   case BASE_REG:
+    if (value > 15)
+      errx(1, "Base register cannot be >15, being set to %d\n", value);
     base_register= (value & 0xf) << 16;
     if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
       fprintf(logfh, "EXPRAM base register set to 0x%x\n", base_register);
