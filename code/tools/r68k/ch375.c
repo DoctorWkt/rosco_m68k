@@ -95,6 +95,7 @@ uint8_t send_ch375_cmd(uint8_t cmd) {
   struct stat S;
   off_t numblocks;
   int err;
+  long posn;
 
   switch (prevcmd = cmd) {
   case GET_IC_VER:
@@ -155,7 +156,8 @@ uint8_t send_ch375_cmd(uint8_t cmd) {
     // Read another 64 bytes into the buffer and send an interrupt
     // After eight DISK_RD_GO commands, set status to USB_INT_SUCCESS
     if ((err = fread(buf, 64, 1, disk)) != 1) {
-      fprintf(stderr, "CH375 read error\n"); exit(1);
+      posn= ftell(disk);
+      fprintf(stderr, "CH375 read error at posn %ld\n", posn); exit(1);
     }
     bufindex = 0; bufcnt = 64; gocount++;
     if (gocount==8)
