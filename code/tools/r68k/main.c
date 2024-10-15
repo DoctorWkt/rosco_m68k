@@ -43,7 +43,6 @@ int	loglevel= 0;		    // Log level
 char    *ch375file= NULL;	    // CH375 file name
 uint32_t base_register= 0;	    // Base register for expansion RAM
 uint32_t start_address= DEFAULT_ADDRESS;
-int	is_xv6_binary=0;	    // Are we running an xv6 binary?
 
 // Static variables
 static char *romfile= "firmware/rosco_m68k.rom";
@@ -108,7 +107,6 @@ void initialise_memory(const char *romfilename) {
     uint32 be_stkptr= htobe32(RAM_SIZE);
     memcpy(g_ram,       (void *)&be_stkptr, 4);
     memcpy(&(g_ram[4]), (void *)&be_start,  4);
-    is_xv6_binary=1;
   }
 }
 
@@ -486,12 +484,6 @@ int main(int argc, char *argv[]) {
 
   // Initialise the SD card variables
   sdcard_init();
-
-  // Set the XV6 root
-  if (getenv("XV6ROOT") != NULL)
-    set_emulator_root(getenv("XV6ROOT"));
-  else
-    set_emulator_root("");
 
   // Initialise the CPU
   m68k_set_cpu_type(M68K_CPU_TYPE_68010);

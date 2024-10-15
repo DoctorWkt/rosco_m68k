@@ -3,7 +3,7 @@
 
 CLEAN_FILES=r68k *.o rosco_m68k_glue/*.o machine/*.o
 R68K_OBJS=main.o devices.o mapfile.o monitor.o \
-	 sdcard.o ch375.o xv6syscalls.o
+	 sdcard.o ch375.o
 MUSASHI_OBJS=musashi/m68kcpu.o musashi/m68kdasm.o musashi/m68kops.o \
 	musashi/softfloat/softfloat.o
 ROM_BINARY=firmware/rosco_m68k.rom
