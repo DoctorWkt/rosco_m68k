@@ -54,11 +54,11 @@
 
 // SPI defines
 #define SPI_OUTBIT	0x00f0001d
-#define  SPI_ASSERTCS0	0x04
-#define  SPI_OUTMASK	0x40	// This bit inverse of output bit
-#define SPI_OUTPUT	0x10	// If set, is a bit send
+#define SPI_ASSERTCS0	0x04
+#define SPI_OUTMASK	0x40		// This bit inverse of output bit
+#define SPI_OUTPUT	0x10		// If set, is a bit send
 #define SPI_INBIT	0x00f0001b
-#define SPI_INMASK	0x04	// Bit to set if receiving a 1 bit
+#define SPI_INMASK	0x04		// Bit to set if receiving a 1 bit
 
 // Xosera addresses
 #define XM_BASEADDR	0x00f80060
@@ -159,7 +159,7 @@ unsigned int io_read_byte(unsigned int address) {
   uint8_t *dataptr;
 
   switch (address) {
-    // UART
+  				// UART
   case DUART_SRA:		// Get the status of port A
     value = 8;			// Port A is writable
     if (check_char())
@@ -171,26 +171,26 @@ unsigned int io_read_byte(unsigned int address) {
     return (ivr_value);
   case DUART_SRB:		// Get status of port B
     return (8);			// Writeable, but for now writes
-    				// are discarded. To fix later
-    				// with a socket.
+    // are discarded. To fix later
+    // with a socket.
   case R_STOPCNTCMD:
   case R_STARTCNTCMD:
     return (0);
   case DUART_ISR:		// Counter interrupt
     return (8);
 
-    // Xosera: say that it doesn't exist
+    				// Xosera: say that it doesn't exist
   case XM_BASEADDR:
     // Write 1 to address BERR_FLAG to indicate
     // that there is no RAM at this address
     cpu_write_byte(BERR_FLAG, 1);
     return (0);
 
-    // CH375
+    				// CH375
   case CH375_DATADDR:
-    return(read_ch375_data());
+    return (read_ch375_data());
 
-    // SPI
+    				// SPI
   case SPI_INBIT:
     // If there is no data to receive
     if (spi_isdata == 0) {
@@ -248,7 +248,7 @@ void io_write_byte(unsigned int address, unsigned int value) {
   uint8_t result;
 
   switch (address) {
-  // UART
+    				// UART
   case DUART_TBA:		// Send a character on port A
     fputc(value & 0xFF, stdout);
     fflush(stdout);
@@ -272,33 +272,35 @@ void io_write_byte(unsigned int address, unsigned int value) {
 
   case DUART_IMR:
     // Turn off the 100Hz heartbeat
-    if ((value & 0xff)==0) {
+    if ((value & 0xff) == 0) {
       detach_sigalrm();
     }
     return;
 
-  // CH375: If we get a true result back,
-  // then generate a level 5 interrupt.
+    				// CH375: If we get a true result back,
+    				// then generate a level 5 interrupt.
   case CH375_DATADDR:
-    result= send_ch375_data(value & 0xff);
-    if (result) m68k_set_irq(CH375_IRQ);
+    result = send_ch375_data(value & 0xff);
+    if (result)
+      m68k_set_irq(CH375_IRQ);
     return;
   case CH375_CMDADDR:
-    result= send_ch375_cmd(value & 0xff);
-    if (result) m68k_set_irq(CH375_IRQ);
+    result = send_ch375_cmd(value & 0xff);
+    if (result)
+      m68k_set_irq(CH375_IRQ);
     return;
 
-  // Expansion RAM base register
+    				// Expansion RAM base register
   case BASE_REG:
     if (value > 15)
       errx(1, "Base register cannot be >15, being set to %d\n", value);
-    base_register= (value & 0xf) << 16;
+    base_register = (value & 0xf) << 16;
     if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
       fprintf(logfh, "EXPRAM base register set to 0x%x\n", base_register);
     }
     return;
 
-  // SPI
+    					// SPI
   case SPI_OUTBIT:
     // If CS) has been asserted
     if (value & SPI_ASSERTCS0) {
@@ -341,7 +343,7 @@ void io_write_byte(unsigned int address, unsigned int value) {
 
 void io_write_word(unsigned int address, unsigned int value) {
   switch (address) {
-  // ATA
+    					// ATA
   case ATA_REG_WR_DEVICE_CTL:
     // Write 1 to address BERR_FLAG to indicate
     // that there is nothing at this address
@@ -437,8 +439,8 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
       m68k_pulse_halt();
       tcsetattr(STDIN_FILENO, TCSANOW, &originalTermios);
       exit(m68k_read_memory_32(a7 + 4));	// assuming called from
-						// cstdlib - C will have
-						// stacked an exit code
+      // cstdlib - C will have
+      // stacked an exit code
       break;
     case 4:
       // check_char
@@ -458,14 +460,14 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
       if (!ifs) {
 	m68k_set_reg(M68K_REG_D0, 1);
       } else {
-	m68k_write_memory_8(a1 + 0, 1);	 // Initialized
-	m68k_write_memory_8(a1 + 1, 2);	 // SDHC
-	m68k_write_memory_8(a1 + 2, 0);	 // No current block
-	m68k_write_memory_32(a1 + 3, 0); // Ignored (current block num)
-	m68k_write_memory_16(a1 + 7, 0); // Ignored (current block offset)
-	m68k_write_memory_8(a1 + 9, 0);	 // No partial reads
-					 // (_could_ support, just don't yet)
-	m68k_set_reg(M68K_REG_D0, 0);	 // Success
+	m68k_write_memory_8(a1 + 0, 1);	// Initialized
+	m68k_write_memory_8(a1 + 1, 2);	// SDHC
+	m68k_write_memory_8(a1 + 2, 0);	// No current block
+	m68k_write_memory_32(a1 + 3, 0);	// Ignored (current block num)
+	m68k_write_memory_16(a1 + 7, 0);	// Ignored (current block offset)
+	m68k_write_memory_8(a1 + 9, 0);	// No partial reads
+	// (_could_ support, just don't yet)
+	m68k_set_reg(M68K_REG_D0, 0);	// Success
       }
       break;
     case 7:

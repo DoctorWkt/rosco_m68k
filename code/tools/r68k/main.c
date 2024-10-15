@@ -34,21 +34,22 @@
 #define DEFAULT_ADDRESS 0x40000
 
 // Global variables
-uint8_t *g_rom;			    // ROM memory
-uint8_t *g_ram;			    // Base RAM memory
-uint8_t *g_exp;			    // Expansion RAM memory
-uint8_t zerolong[4]= {0, 0, 0, 0};  // 4 bytes of zeroes
-FILE    *logfh= NULL;		    // Logging filehandle
-int	loglevel= 0;		    // Log level
-char    *ch375file= NULL;	    // CH375 file name
-uint32_t base_register= 0;	    // Base register for expansion RAM
-uint32_t start_address= DEFAULT_ADDRESS;
+uint8_t *g_rom;			// ROM memory
+uint8_t *g_ram;			// Base RAM memory
+uint8_t *g_exp;			// Expansion RAM memory
+uint8_t zerolong[4] = { 0, 0, 0, 0 };	// 4 bytes of zeroes
+
+FILE *logfh = NULL;		// Logging filehandle
+int loglevel = 0;		// Log level
+char *ch375file = NULL;		// CH375 file name
+uint32_t base_register = 0;	// Base register for expansion RAM
+uint32_t start_address = DEFAULT_ADDRESS;
 
 // Static variables
-static char *romfile= "firmware/rosco_m68k.rom";
+static char *romfile = "firmware/rosco_m68k.rom";
 
 // If 1, we hit a write breakpoint
-static unsigned write_brkpt= 0;
+static unsigned write_brkpt = 0;
 
 // External variables
 extern char *sdfile;		// SD card file
@@ -56,7 +57,7 @@ extern FILE *ifs;		// File handle for this
 
 // Close the log file if it is open
 void close_logfile() {
-  if (logfh!=NULL) {
+  if (logfh != NULL) {
     fflush(logfh);
     fclose(logfh);
   }
@@ -69,10 +70,12 @@ void ReadBinaryData(const char *filename, uint8_t * addr) {
   int cnt;
 
   in = fopen(filename, "r");
-  if (in == NULL) errx(EXIT_FAILURE, "Cannot open %s", filename);
+  if (in == NULL)
+    errx(EXIT_FAILURE, "Cannot open %s", filename);
   while (1) {
     cnt = fread(addr, 1, 4096, in);
-    if (cnt <= 0) break;
+    if (cnt <= 0)
+      break;
     addr += cnt;
   }
   fclose(in);
@@ -90,7 +93,7 @@ void initialise_memory(const char *romfilename) {
 
   if (logfh != NULL && (loglevel & LOG_MEMACCESS) == LOG_MEMACCESS) {
     fprintf(logfh, "Initialized with %d bytes RAM and %d bytes ROM\n",
-						RAM_SIZE, ROM_SIZE);
+	    RAM_SIZE, ROM_SIZE);
   }
 
   ReadBinaryData(romfilename, g_rom);
@@ -103,10 +106,10 @@ void initialise_memory(const char *romfilename) {
   else {
     // We start directly in the executable
     // without running any ROM code
-    uint32 be_start= htobe32(start_address);
-    uint32 be_stkptr= htobe32(RAM_SIZE);
-    memcpy(g_ram,       (void *)&be_stkptr, 4);
-    memcpy(&(g_ram[4]), (void *)&be_start,  4);
+    uint32 be_start = htobe32(start_address);
+    uint32 be_stkptr = htobe32(RAM_SIZE);
+    memcpy(g_ram, (void *) &be_stkptr, 4);
+    memcpy(&(g_ram[4]), (void *) &be_start, 4);
   }
 }
 
@@ -114,7 +117,7 @@ void initialise_memory(const char *romfilename) {
 // location in g_ram, g_rom or g_exp which is
 // the location of this address in the emulator.
 // If the m68k address isn't ROM or RAM, return NULL.
-uint8_t * emuAddress(uint32_t address, int iswrite) {
+uint8_t *emuAddress(uint32_t address, int iswrite) {
 
   // Note: -Wall complains about if (address >= RAM_BASE
   // buf if RAM_BASE is ever >0 then we should put it back in.
@@ -123,44 +126,45 @@ uint8_t * emuAddress(uint32_t address, int iswrite) {
     if (logfh != NULL && (loglevel & LOG_MEMACCESS) == LOG_MEMACCESS) {
       fprintf(logfh, "RAM relative address is: 0x%x\n", address);
     }
-    return(&(g_ram[address]));
+    return (&(g_ram[address]));
 
   } else if (address >= ROM_BASE && address < ROM_BASE + ROM_SIZE) {
 
     // If it's a write, return NULL
     if (iswrite) {
       if (logfh != NULL && (loglevel & LOG_MEMACCESS) == LOG_MEMACCESS) {
-        fprintf(logfh, "ROM write to address 0x%x\n", address);
+	fprintf(logfh, "ROM write to address 0x%x\n", address);
       }
-      return(NULL);
+      return (NULL);
     }
 
     if (logfh != NULL && (loglevel & LOG_MEMACCESS) == LOG_MEMACCESS) {
       fprintf(logfh, "ROM relative address is: 0x%x\n", address - ROM_BASE);
     }
-    return(&(g_rom[address - ROM_BASE]));
+    return (&(g_rom[address - ROM_BASE]));
 
   } else if (address >= EXP_BASE && address < EXP_BASE + EXP_SIZE) {
 
     // Expansion RAM. Add on the base register value and
     // truncate it to be within EXP_BASE .. EXP_BASE + EXP_SIZE - 1
-    uint32_t physaddr= address + base_register;
+    uint32_t physaddr = address + base_register;
     if (physaddr >= EXP_BASE + EXP_SIZE)
       physaddr -= EXP_BASE;
 
     if (logfh != NULL && (loglevel & LOG_MEMACCESS) == LOG_MEMACCESS) {
       fprintf(logfh, "EXPRAM address 0x%x + basereg 0x%x => physaddr 0x%x\n",
-		address, base_register, physaddr);
-      fprintf(logfh, "EXPRAM relative address is: 0x%x\n", physaddr - EXP_BASE);
+	      address, base_register, physaddr);
+      fprintf(logfh, "EXPRAM relative address is: 0x%x\n",
+	      physaddr - EXP_BASE);
     }
-    return(&(g_exp[physaddr - EXP_BASE]));
+    return (&(g_exp[physaddr - EXP_BASE]));
 
   }
 
   if (logfh != NULL && (loglevel & LOG_BUSERROR) == LOG_BUSERROR) {
-      fprintf(logfh, "BUSERROR at address 0x%X\n", address);
+    fprintf(logfh, "BUSERROR at address 0x%X\n", address);
   }
-  return(NULL);
+  return (NULL);
 }
 
 // Read/write macros
@@ -184,9 +188,10 @@ uint8_t * emuAddress(uint32_t address, int iswrite) {
 unsigned int cpu_read_byte(unsigned int address) {
   uint8_t *emuaddr;
 
-  if (address >= IO_BASE) return(io_read_byte(address));
-  emuaddr= emuAddress(address,0);
-  if (emuaddr==NULL) return(0);
+  if (address >= IO_BASE)
+    return (io_read_byte(address));
+  emuaddr = emuAddress(address, 0);
+  if (emuaddr == NULL) return (0);
   return READ_BYTE(emuaddr);
 }
 
@@ -199,38 +204,40 @@ void address_err(unsigned int address) {
 unsigned int cpu_read_word(unsigned int address) {
   uint8_t *emuaddr;
 
-  if (address >= IO_BASE) return(io_read_word(address));
+  if (address >= IO_BASE)
+    return (io_read_word(address));
 #ifdef DETECT_ADDR_ERROR
   if (address & 0x1) address_err(address);
 #endif
 
-  emuaddr= emuAddress(address,0);
-  if (emuaddr==NULL) return(0);
+  emuaddr = emuAddress(address, 0);
+  if (emuaddr == NULL) return (0);
   return READ_WORD(emuaddr);
 }
 
 unsigned int cpu_read_long(unsigned int address) {
   uint8_t *emuaddr;
 
-  if (address >= IO_BASE) return(io_read_long(address));
+  if (address >= IO_BASE)
+    return (io_read_long(address));
 #ifdef DETECT_ADDR_ERROR
   if (address & 0x1) address_err(address);
 #endif
 
-  emuaddr= emuAddress(address,0);
-  if (emuaddr==NULL) return(0);
+  emuaddr = emuAddress(address, 0);
+  if (emuaddr == NULL) return (0);
   return READ_LONG(emuaddr);
 }
 
 unsigned int cpu_read_word_dasm(unsigned int address) {
-  uint8_t *emuaddr= emuAddress(address,0);
-  if (emuaddr==NULL) return(0);
+  uint8_t *emuaddr = emuAddress(address, 0);
+  if (emuaddr == NULL) return (0);
   return READ_WORD(emuaddr);
 }
 
 unsigned int cpu_read_long_dasm(unsigned int address) {
-  uint8_t *emuaddr= emuAddress(address,0);
-  if (emuaddr==NULL) return(0);
+  uint8_t *emuaddr = emuAddress(address, 0);
+  if (emuaddr == NULL) return (0);
   return READ_LONG(emuaddr);
 }
 
@@ -239,44 +246,54 @@ unsigned int cpu_read_long_dasm(unsigned int address) {
 void cpu_write_byte(unsigned int address, unsigned int value) {
   uint8_t *emuaddr;
 
-  if (address >= IO_BASE) { io_write_byte(address, value); return; }
-  emuaddr= emuAddress(address,1);
-  if (emuaddr==NULL) return;
+  if (address >= IO_BASE) {
+    io_write_byte(address, value);
+    return;
+  }
+  emuaddr = emuAddress(address, 1);
+  if (emuaddr == NULL) return;
   WRITE_BYTE(emuaddr, value);
   if (is_breakpoint(address, BRK_WRITE)) {
-    write_brkpt= 1; printf("Write at $%04X\n", address);
+    write_brkpt = 1;
+    printf("Write at $%04X\n", address);
   }
 }
 
 void cpu_write_word(unsigned int address, unsigned int value) {
   uint8_t *emuaddr;
 
-  if (address >= IO_BASE) { io_write_word(address, value); return; }
+  if (address >= IO_BASE) {
+    io_write_word(address, value);
+    return;
+  }
 #ifdef DETECT_ADDR_ERROR
-  if (address & 0x1)
-    address_err(address);
+  if (address & 0x1) address_err(address);
 #endif
-  emuaddr= emuAddress(address,1);
-  if (emuaddr==NULL) return;
+  emuaddr = emuAddress(address, 1);
+  if (emuaddr == NULL) return;
   WRITE_WORD(emuaddr, value);
   if (is_breakpoint(address, BRK_WRITE)) {
-    write_brkpt= 1; printf("Write at $%04X\n", address);
+    write_brkpt = 1;
+    printf("Write at $%04X\n", address);
   }
 }
 
 void cpu_write_long(unsigned int address, unsigned int value) {
   uint8_t *emuaddr;
 
-  if (address >= IO_BASE) { io_write_long(address, value); return; }
+  if (address >= IO_BASE) {
+    io_write_long(address, value);
+    return;
+  }
 #ifdef DETECT_ADDR_ERROR
-  if (address & 0x1)
-    address_err(address);
+  if (address & 0x1) address_err(address);
 #endif
-  emuaddr= emuAddress(address,1);
-  if (emuaddr==NULL) return;
+  emuaddr = emuAddress(address, 1);
+  if (emuaddr == NULL) return;
   WRITE_LONG(emuaddr, value);
   if (is_breakpoint(address, BRK_WRITE)) {
-    write_brkpt= 1; printf("Write at $%04X\n", address);
+    write_brkpt = 1;
+    printf("Write at $%04X\n", address);
   }
 }
 
@@ -306,10 +323,10 @@ void timer_interrupt() {
 void attach_sigalrm() {
   struct sigaction sa;
 
-  sa.sa_handler= timer_interrupt;
-  sa.sa_flags= 0;
+  sa.sa_handler = timer_interrupt;
+  sa.sa_flags = 0;
   sigemptyset(&(sa.sa_mask));
-  if (sigaction(SIGALRM, &sa, NULL)==-1) {
+  if (sigaction(SIGALRM, &sa, NULL) == -1) {
     warn("Unable to attach a SIGALRM handler");
   }
 }
@@ -318,10 +335,10 @@ void attach_sigalrm() {
 void detach_sigalrm() {
   struct sigaction sa;
 
-  sa.sa_handler= SIG_IGN;
-  sa.sa_flags= 0;
+  sa.sa_handler = SIG_IGN;
+  sa.sa_flags = 0;
   sigemptyset(&(sa.sa_mask));
-  if (sigaction(SIGALRM, &sa, NULL)==-1) {
+  if (sigaction(SIGALRM, &sa, NULL) == -1) {
     warn("Unable to ignore SIGALRMs");
   }
 }
@@ -341,27 +358,25 @@ void make_hex(char *buff, unsigned int pc, unsigned int length) {
 
 // Given a filehandle, print the register
 // values to the filehandle
-void print_regs(FILE *fh) {
+void print_regs(FILE * fh) {
   fprintf(fh, "D0-D7: %08X %08X %08X %08X %08X %08X %08X %08X\n",
-	m68ki_cpu.dar[0], m68ki_cpu.dar[1], m68ki_cpu.dar[2],
-	m68ki_cpu.dar[3], m68ki_cpu.dar[4], m68ki_cpu.dar[5],
-	m68ki_cpu.dar[6], m68ki_cpu.dar[7]);
+	  m68ki_cpu.dar[0], m68ki_cpu.dar[1], m68ki_cpu.dar[2],
+	  m68ki_cpu.dar[3], m68ki_cpu.dar[4], m68ki_cpu.dar[5],
+	  m68ki_cpu.dar[6], m68ki_cpu.dar[7]);
   fprintf(fh, "A0-A7: %08X %08X %08X %08X %08X %08X %08X %08X\n",
-	m68ki_cpu.dar[8],  m68ki_cpu.dar[9],  m68ki_cpu.dar[10],
-	m68ki_cpu.dar[11], m68ki_cpu.dar[12], m68ki_cpu.dar[13],
-	m68ki_cpu.dar[14], m68ki_cpu.dar[15]);
+	  m68ki_cpu.dar[8], m68ki_cpu.dar[9], m68ki_cpu.dar[10],
+	  m68ki_cpu.dar[11], m68ki_cpu.dar[12], m68ki_cpu.dar[13],
+	  m68ki_cpu.dar[14], m68ki_cpu.dar[15]);
   fprintf(fh, "PC:    %08X  VBR:    %08X                                ",
-		REG_PC, REG_VBR);
+	  REG_PC, REG_VBR);
   fprintf(fh, "USP: %08X\n", REG_USP);
   fprintf(fh, "SFC:        %03X  DFC:         %03X  Basereg %d\n",
-		REG_SFC, REG_DFC, base_register >> 16);
+	  REG_SFC, REG_DFC, base_register >> 16);
   fprintf(fh, "Status: mode %c, int %d, %c%c%c%c\n",
-		(FLAG_S) ? 'S' : 'U',
-		FLAG_INT_MASK,
-		(FLAG_N) ? 'N' : ' ',
-		(FLAG_Z) ? 'Z' : ' ',
-		(FLAG_V) ? 'V' : ' ',
-		(FLAG_C) ? 'C' : ' ');
+	  (FLAG_S) ? 'S' : 'U',
+	  FLAG_INT_MASK,
+	  (FLAG_N) ? 'N' : ' ',
+	  (FLAG_Z) ? 'Z' : ' ', (FLAG_V) ? 'V' : ' ', (FLAG_C) ? 'C' : ' ');
   fprintf(fh, "\n");
 }
 
@@ -373,9 +388,12 @@ void usage(char *name) {
   fprintf(stderr, "  -R romfile            Use the file as the ROM image\n");
   fprintf(stderr, "  -S sdcardfile         Attach SD card image file\n");
   fprintf(stderr, "  -U USB_image          Attach USB image file\n");
-  fprintf(stderr, "  -a addr               Load executable at dec/$hex addr\n");
-  fprintf(stderr, "  -b addr [-b addr2]    Set breakpoint(s) at symbol or dec/$hex addr\n");
-  fprintf(stderr, "  -l value              Set dec/$hex bitmap of debug flags\n");
+  fprintf(stderr,
+	  "  -a addr               Load executable at dec/$hex addr\n");
+  fprintf(stderr,
+	  "  -b addr [-b addr2]    Set breakpoint(s) at symbol or dec/$hex addr\n");
+  fprintf(stderr,
+	  "  -l value              Set dec/$hex bitmap of debug flags\n");
   fprintf(stderr, "  -m                    Start in the monitor\n");
   fprintf(stderr, "\nIf -R used, executable_file is optional.\n\n");
   exit(1);
@@ -384,33 +402,36 @@ void usage(char *name) {
 // The main loop
 int main(int argc, char *argv[]) {
   int opt;
-  int i, brkcnt=0;
-  int other_romfile=0;
+  int i, brkcnt = 0;
+  int other_romfile = 0;
   int breakpoint;
   int offset;
   char *sym;
-  int start_in_monitor=0;
-  char **brkstr;                // Array of breakpoint strings
+  int start_in_monitor = 0;
+  char **brkstr;		// Array of breakpoint strings
   int pc;
   unsigned int instr_size;
   char buff[100];
   char buff2[100];
 
-  if (argc < 2) usage(argv[0]);
+  if (argc < 2)
+    usage(argv[0]);
 
   // Create an array to hold any breakpoint string pointers
-  brkstr= (char **)malloc(argc * sizeof(char *));
-  if (brkstr==NULL) err(EXIT_FAILURE, NULL);
+  brkstr = (char **) malloc(argc * sizeof(char *));
+  if (brkstr == NULL)
+    err(EXIT_FAILURE, NULL);
 
   // Get the command-line arguments
   while ((opt = getopt(argc, argv, "L:M:R:S:U:a:b:l:m")) != -1) {
     switch (opt) {
     case 'L':
-      logfh= fopen(optarg, "w+");
-      if (logfh==NULL)
+      logfh = fopen(optarg, "w+");
+      if (logfh == NULL)
 	errx(EXIT_FAILURE, "Unable to open %s\n", optarg);
       // Set a default log level if not already set
-      if (loglevel==0) loglevel = LOG_INSTDECODE;
+      if (loglevel == 0)
+	loglevel = LOG_INSTDECODE;
       atexit(close_logfile);
       break;
     case 'M':
@@ -423,40 +444,39 @@ int main(int argc, char *argv[]) {
       // the real hardware ROM, we won't
       // require the user to name an executable
       // on the command line
-      other_romfile=1;
+      other_romfile = 1;
       break;
     case 'S':
       sdfile = optarg;
-      ifs= fopen(optarg, "r+");
-      if (ifs==NULL)
+      ifs = fopen(optarg, "r+");
+      if (ifs == NULL)
 	errx(EXIT_FAILURE, "Unable to open %s\n", optarg);
-
       break;
     case 'U':
       ch375file = strdup(optarg);
       break;
     case 'a':
-      start_address= parse_addr(optarg, NULL);
+      start_address = parse_addr(optarg, NULL);
       break;
     case 'b':
       // Cache the pointer for now
-      brkstr[brkcnt++]= optarg;
+      brkstr[brkcnt++] = optarg;
       break;
     case 'l':
-      loglevel= parse_addr(optarg, NULL);
+      loglevel = parse_addr(optarg, NULL);
       break;
     case 'm':
-      start_in_monitor=1;
+      start_in_monitor = 1;
       break;
     default:
-	usage(argv[0]);
+      usage(argv[0]);
     }
   }
 
   // If we haven't loaded a non-default
   // ROM and there is no executable named
   // on the command line, it's an error
-  if (other_romfile==0 && optind==argc)
+  if (other_romfile == 0 && optind == argc)
     usage(argv[0]);
 
   // Initialise the monitor
@@ -464,8 +484,8 @@ int main(int argc, char *argv[]) {
 
   // Now that we might have a map file,
   // parse any breakpoint strings and set them
-  for (i=0; i<brkcnt; i++) {
-    breakpoint= parse_addr(brkstr[i], NULL);
+  for (i = 0; i < brkcnt; i++) {
+    breakpoint = parse_addr(brkstr[i], NULL);
     if (breakpoint != -1)
       set_breakpoint(breakpoint, BRK_INST);
   }
@@ -475,7 +495,7 @@ int main(int argc, char *argv[]) {
 
   // Load the program at the start address in RAM.
   // Only do this if we actually have a filename.
-  if (optind<argc)
+  if (optind < argc)
     ReadBinaryData(argv[optind], &(g_ram[start_address]));
 
   // Initialise the terminal
@@ -492,12 +512,11 @@ int main(int argc, char *argv[]) {
 
   // Start in the monitor if needed
   if (start_in_monitor) {
-    pc= monitor(m68ki_cpu.pc);
+    pc = monitor(m68ki_cpu.pc);
     // Change the start address if the monitor says so
-    if (pc!=-1)
-      m68ki_cpu.pc= pc;
+    if (pc != -1)
+      m68ki_cpu.pc = pc;
   }
-
   // Attach the routine that handles
   // the periodic timer interrupts
   attach_sigalrm();
@@ -506,7 +525,7 @@ int main(int argc, char *argv[]) {
   set_timer();
 
   while (1) {
-    pc= m68ki_cpu.pc;
+    pc = m68ki_cpu.pc;
 
     // Log the disassembly of the next instruction
     if (logfh != NULL && (loglevel & LOG_INSTDECODE) == LOG_INSTDECODE) {
@@ -517,27 +536,26 @@ int main(int argc, char *argv[]) {
       make_hex(buff2, pc, instr_size);
 
       // See if we have a symbol at this address
-      sym=NULL;
+      sym = NULL;
       if (mapfile_loaded)
-        sym= get_symbol_and_offset(pc, &offset);
-      if (sym!=NULL)
-        fprintf(logfh, "%12s+%04X: ", sym, offset);
+	sym = get_symbol_and_offset(pc, &offset);
+      if (sym != NULL)
+	fprintf(logfh, "%12s+%04X: ", sym, offset);
       else
-        fprintf(logfh, "%04X: ", pc);
+	fprintf(logfh, "%04X: ", pc);
 
       // Now print the memory and the instruction
       fprintf(logfh, "%-20s: %s\n", buff2, buff);
     }
-
     // If the PC is a breakpoint, or we hit a write
     // breakpoint, fall into the monitor
-    if (write_brkpt==1 || is_breakpoint(pc, BRK_INST)) {
-      write_brkpt=0;
-      pc= monitor(pc);
+    if (write_brkpt == 1 || is_breakpoint(pc, BRK_INST)) {
+      write_brkpt = 0;
+      pc = monitor(pc);
 
       // If we have a new PC from the monitor, set it
       if (pc != -1)
-        m68ki_cpu.pc= pc;
+	m68ki_cpu.pc = pc;
     }
 
     m68k_execute(1);
@@ -548,6 +566,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if (logfh != NULL) fclose(logfh);
-  return(0);
+  if (logfh != NULL)
+    fclose(logfh);
+  return (0);
 }

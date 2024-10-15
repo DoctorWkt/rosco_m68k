@@ -107,9 +107,9 @@ static int imagewrite(uint32_t blk, uint8_t * data) {
 #if 1
   if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
     fprintf(logfh, "Block data:\n  ");
-    for (int i = 0; i < m_blksize ; i++) {
+    for (int i = 0; i < m_blksize; i++) {
       fprintf(logfh, "%02x ", data[i]);
-      if ((i % 16)==15)
+      if ((i % 16) == 15)
 	fprintf(logfh, "\n  ");
     }
     fprintf(logfh, "\n");
@@ -120,11 +120,11 @@ static int imagewrite(uint32_t blk, uint8_t * data) {
   if (m_type == SD_TYPE_HC)
     blk *= m_blksize;
 
-  err= fseek(ifs, blk, SEEK_SET);
-  if (err==-1) {
+  err = fseek(ifs, blk, SEEK_SET);
+  if (err == -1) {
     if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
       fprintf(logfh, "SD unable to fseek to %d for write\n", blk);
-      return(0);
+      return (0);
     }
   }
   cnt = fwrite(data, 1, m_blksize, ifs);
@@ -143,11 +143,11 @@ static int imageread(uint32_t blk, uint8_t * data) {
   if (m_type == SD_TYPE_HC)
     blk *= m_blksize;
 
-  err= fseek(ifs, blk, SEEK_SET);
-  if (err==-1) {
+  err = fseek(ifs, blk, SEEK_SET);
+  if (err == -1) {
     if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
       fprintf(logfh, "SD unable to fseek to %d for read\n", blk);
-      return(0);
+      return (0);
     }
   }
   cnt = fread(data, 1, m_blksize, ifs);
@@ -194,7 +194,7 @@ static void send_data(uint16_t count, int new_state) {
     fprintf(logfh, "SDCARD response: %d bytes:\n  ", count);
     for (int i = 0; i < count; i++) {
       fprintf(logfh, "%02x ", m_data[i]);
-      if ((i % 16)==15)
+      if ((i % 16) == 15)
 	fprintf(logfh, "\n  ");
     }
     fprintf(logfh, "\n");
@@ -231,10 +231,10 @@ void spi_latch_in(uint8_t m_in_latch) {
 
   // Bubble the existing command data down
   // and put the byte that the end
-  for (int i=0; i<5; i++)
+  for (int i = 0; i < 5; i++)
     m_cmd[i] = m_cmd[i + 1];
 
-  m_cmd[5]= m_in_latch;
+  m_cmd[5] = m_in_latch;
 
   switch (m_state) {
   case SD_STATE_IDLE:
@@ -254,14 +254,15 @@ void spi_latch_in(uint8_t m_in_latch) {
     if (m_write_ptr == (m_blksize + 2)) {
       if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
 	fprintf(logfh, "writing LBA %d (0x%x), data %02x %02x %02x %02x\n",
-		m_blknext, m_blknext, m_data[0], m_data[1], m_data[2], m_data[3]);
+		m_blknext, m_blknext, m_data[0], m_data[1], m_data[2],
+		m_data[3]);
       }
       if (imagewrite(m_blknext, &m_data[0])) {
 	m_data[0] = DATA_RESPONSE_OK;
       } else {
 	m_data[0] = DATA_RESPONSE_IO_ERROR;
       }
-      // m_data[1] = 0x01;		// WKT original
+      // m_data[1] = 0x01;              // WKT original
       // send_data(2, SD_STATE_IDLE);   // WKT original
 
       // WKT: looking at the rosco code in bbsd.c, it does:
@@ -458,7 +459,7 @@ static void do_command() {
     case 58:			// CMD58 - READ_OCR
       m_data[0] = 0;
       if (m_type == SD_TYPE_HC) {
-	// m_data[1] = 0x40;	// indicate SDHC support WKT original
+	// m_data[1] = 0x40;    // indicate SDHC support WKT original
 	m_data[1] = 0xC0;	// indicate SDHC support WKT new
       } else {
 	m_data[1] = 0x80;

@@ -380,14 +380,15 @@ int monitor(int curpc) {
   detach_sigalrm();
 
   if (is_breakpoint(curpc, BRK_INST)) {
-    sym= NULL;
+    sym = NULL;
     if (mapfile_loaded)
       sym = get_symbol_and_offset(curpc, &offset);
     if (sym != NULL)
       printf("Stopped at %s+$%X ($%06X)\n", sym, offset, curpc);
     else
       printf("Stopped at $%06X\n", curpc);
-    print_regs(stdout); printf("\n");
+    print_regs(stdout);
+    printf("\n");
   }
 
   while (1) {
@@ -472,9 +473,9 @@ int monitor(int curpc) {
       }
       addr = parse_addr_msg(arg[1], NULL);
       if (addr != -1) {
-        init_term();
-        // Reattach the timer handler
-        attach_sigalrm();
+	init_term();
+	// Reattach the timer handler
+	attach_sigalrm();
 	set_timer();
 	return (addr);
       }

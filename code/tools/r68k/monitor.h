@@ -1,9 +1,8 @@
 #ifndef EMUMON_H
-# define EMUMON_H
+#define EMUMON_H
 
 // Breakpoint types
-enum brkpt_nums
-{
+enum brkpt_nums {
   BRK_EMPTY,
   BRK_WRITE,
   BRK_INST

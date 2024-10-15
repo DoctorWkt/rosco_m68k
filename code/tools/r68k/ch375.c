@@ -18,7 +18,7 @@
 #define GET_STATUS	0x22
 #define RD_USB_DATA	0x28
 #define WR_USB_DATA	0x2B
-#define WR_USB_DATA1	0xFF		// Not a real cmd, to tell us that
+#define WR_USB_DATA1	0xFF	// Not a real cmd, to tell us that
 					// we already have the maxcnt
 #define DISK_INIT	0x51
 #define DISK_SIZE	0x53
@@ -86,7 +86,7 @@ uint8_t read_ch375_data(void) {
 }
 
 // Count of consecutive DISK_RD_GO or DISK_WR_GO commands
-int gocount=0;
+int gocount = 0;
 
 // Send a command to the CH375. If the function returns true,
 // then the CPU must generate an interrupt.
@@ -99,16 +99,29 @@ uint8_t send_ch375_cmd(uint8_t cmd) {
 
   switch (prevcmd = cmd) {
   case GET_IC_VER:
-    bufindex = 0; bufcnt = 1; buf[0] = 0xB7; status = 0; break;
+    bufindex = 0;
+    bufcnt = 1;
+    buf[0] = 0xB7;
+    status = 0;
+    break;
   case RESET_ALL:
-    bufindex = 0; bufcnt = 0; status = 0; break;
+    bufindex = 0;
+    bufcnt = 0;
+    status = 0;
+    break;
   case CHECK_EXIST:
-    bufindex = 0; bufcnt = 0; status = 0; break;
+    bufindex = 0;
+    bufcnt = 0;
+    status = 0;
+    break;
   case SET_USB_MODE:
-    bufindex = 0; bufcnt = 0; status = 0; break;
+    bufindex = 0;
+    bufcnt = 0;
+    status = 0;
+    break;
   case DISK_INIT:
     // Try to open the filesystem image. Send an interrupt if successful
-    if (ch375file ==NULL) {
+    if (ch375file == NULL) {
       fprintf(stderr, "No USB file defined with -U\n");
       exit(1);
     }
@@ -116,14 +129,16 @@ uint8_t send_ch375_cmd(uint8_t cmd) {
       fprintf(stderr, "Unable to open USB file '%s' read-write\n", ch375file);
       exit(1);
     }
-    status = USB_INT_SUCCESS; return (1);
+    status = USB_INT_SUCCESS;
+    return (1);
   case GET_STATUS:
     // Nothing to do here
     break;
   case DISK_SIZE:
     // Get the file's size
     if (stat(ch375file, &S) == -1) {
-      fprintf(stderr, "CH375 unable to stat '%s'\n", ch375file); exit(1);
+      fprintf(stderr, "CH375 unable to stat '%s'\n", ch375file);
+      exit(1);
     }
 
     // Convert to number of blocks
@@ -136,19 +151,29 @@ uint8_t send_ch375_cmd(uint8_t cmd) {
     buf[3] = numblocks & 0xff;
 
     // Blocks are 512 bytes in size
-    buf[4] = 0x00; buf[5] = 0x00; buf[6] = 0x02; buf[7] = 0x00;
+    buf[4] = 0x00;
+    buf[5] = 0x00;
+    buf[6] = 0x02;
+    buf[7] = 0x00;
 
     // Send an interrupt
-    bufindex = 0; bufcnt = 8; status = USB_INT_SUCCESS; return (1);
+    bufindex = 0;
+    bufcnt = 8;
+    status = USB_INT_SUCCESS;
+    return (1);
   case DISK_READ:
     // Nothing to do here
-    gocount=0; bufindex=0; break;
+    gocount = 0;
+    bufindex = 0;
+    break;
   case RD_USB_DATA:
     // Nothing to do here
     break;
   case DISK_WRITE:
     // Nothing to do here
-    gocount= 0; bufindex=0; break;
+    gocount = 0;
+    bufindex = 0;
+    break;
   case WR_USB_DATA:
     // Nothing to do here
     break;
@@ -156,11 +181,14 @@ uint8_t send_ch375_cmd(uint8_t cmd) {
     // Read another 64 bytes into the buffer and send an interrupt
     // After eight DISK_RD_GO commands, set status to USB_INT_SUCCESS
     if ((err = fread(buf, 64, 1, disk)) != 1) {
-      posn= ftell(disk);
-      fprintf(stderr, "CH375 read error at posn %ld\n", posn); exit(1);
+      posn = ftell(disk);
+      fprintf(stderr, "CH375 read error at posn %ld\n", posn);
+      exit(1);
     }
-    bufindex = 0; bufcnt = 64; gocount++;
-    if (gocount==8)
+    bufindex = 0;
+    bufcnt = 64;
+    gocount++;
+    if (gocount == 8)
       status = USB_INT_SUCCESS;
     else
       status = USB_INT_DISK_READ;
@@ -168,14 +196,15 @@ uint8_t send_ch375_cmd(uint8_t cmd) {
   case DISK_WR_GO:
     // Send an interrupt
     gocount++;
-    if (gocount==8)
+    if (gocount == 8)
       status = USB_INT_SUCCESS;
     else
       status = USB_INT_DISK_WRITE;
     return (1);
 
   default:
-    fprintf(stderr, "Unknown CH375 command 0x%x\n", cmd); exit(1);
+    fprintf(stderr, "Unknown CH375 command 0x%x\n", cmd);
+    exit(1);
   }
   return (0);
 }
@@ -190,103 +219,132 @@ uint8_t send_ch375_data(uint8_t data) {
   switch (prevcmd) {
   case CHECK_EXIST:
     // Invert the data and put it in the buf
-    bufindex = 0; bufcnt = 1; buf[0] = ~data; break;
+    bufindex = 0;
+    bufcnt = 1;
+    buf[0] = ~data;
+    break;
   case SET_USB_MODE:
     // Ensure it's a 6
     if (data != 6) {
-      fprintf(stderr, "Didn't get 6 after USB_MODE: 0x%x\n", data); exit(1);
+      fprintf(stderr, "Didn't get 6 after USB_MODE: 0x%x\n", data);
+      exit(1);
     }
     // Put the status into the buffer and also send an interrupt
-    status = USB_INT_CONNECT; bufindex = 0; bufcnt = 1; buf[0] = status; return(1);
+    status = USB_INT_CONNECT;
+    bufindex = 0;
+    bufcnt = 1;
+    buf[0] = status;
+    return (1);
   case DISK_READ:
     // Put the data into the buffer unless there's too much
     if (bufindex > 5) {
-      fprintf(stderr, "Too many arguments after a DISK_READ cmd\n"); exit(1);
+      fprintf(stderr, "Too many arguments after a DISK_READ cmd\n");
+      exit(1);
     }
     buf[bufindex++] = data;
 
     // Read the block if we have the right number of arguments.
     // Send an interrupt as a result.
     if (bufindex == 5) {
-      if (disk==NULL) {
+      if (disk == NULL) {
 	fprintf(stderr, "CH375 device not initialised before read\n");
 	exit(1);
       }
 
       // We can only read one block at a time
       if (buf[4] != 1) {
-	fprintf(stderr, "CH375 can only read 1 block\n"); exit(1);
+	fprintf(stderr, "CH375 can only read 1 block\n");
+	exit(1);
       }
-      offset = 512 * (buf[0] + (buf[1] << 8) + (buf[2] << 16) + (buf[3] << 24));
+      offset =
+	512 * (buf[0] + (buf[1] << 8) + (buf[2] << 16) + (buf[3] << 24));
       if ((err = fseek(disk, offset, SEEK_SET)) == -1) {
-	fprintf(stderr, "CH375 seek error offset %ld\n", offset); exit(1);
+	fprintf(stderr, "CH375 seek error offset %ld\n", offset);
+	exit(1);
       }
 
       if ((err = fread(buf, 64, 1, disk)) != 1) {
-	fprintf(stderr, "CH375 read error offset %ld\n", offset); exit(1);
+	fprintf(stderr, "CH375 read error offset %ld\n", offset);
+	exit(1);
       }
       bufindex = 0;
-      bufindex = 0; bufcnt = 64; status = USB_INT_DISK_READ; return (1);
+      bufindex = 0;
+      bufcnt = 64;
+      status = USB_INT_DISK_READ;
+      return (1);
     }
     break;
 
   case DISK_WRITE:
     // Put the data into the buffer unless there's too much
     if (bufindex > 5) {
-      fprintf(stderr, "Too many arguments after a DISK_WRITE cmd\n"); exit(1);
+      fprintf(stderr, "Too many arguments after a DISK_WRITE cmd\n");
+      exit(1);
     }
     buf[bufindex++] = data;
 
     // Seek to the specified location.
     // Send an interrupt as a result.
     if (bufindex == 5) {
-      if (disk==NULL) {
+      if (disk == NULL) {
 	fprintf(stderr, "CH375 device not initialised before write\n");
 	exit(1);
       }
 
       // We can only write one block at a time
       if (buf[4] != 1) {
-	fprintf(stderr, "CH375 can only write 1 block\n"); exit(1);
+	fprintf(stderr, "CH375 can only write 1 block\n");
+	exit(1);
       }
-      offset = 512 * (buf[0] + (buf[1] << 8) + (buf[2] << 16) + (buf[3] << 24));
+      offset =
+	512 * (buf[0] + (buf[1] << 8) + (buf[2] << 16) + (buf[3] << 24));
 // printf("ch375 write to block %ld\n", offset/512);
       if ((err = fseek(disk, offset, SEEK_SET)) == -1) {
-	fprintf(stderr, "CH375 seek error offset %ld\n", offset); exit(1);
+	fprintf(stderr, "CH375 seek error offset %ld\n", offset);
+	exit(1);
       }
 
-      bufindex = 0; status = USB_INT_DISK_WRITE; return (1);
+      bufindex = 0;
+      status = USB_INT_DISK_WRITE;
+      return (1);
     }
     break;
 
   case WR_USB_DATA:
     // Check that the maxcnt size is not too big
-    if (data>64) {
-	fprintf(stderr, "CH375 cannot write more than 64 bytes\n"); exit(1);
+    if (data > 64) {
+      fprintf(stderr, "CH375 cannot write more than 64 bytes\n");
+      exit(1);
     }
     // Prepare to read maxcnt data into the buffer
-    maxcnt= data; bufindex = 0; prevcmd= WR_USB_DATA1;
+    maxcnt = data;
+    bufindex = 0;
+    prevcmd = WR_USB_DATA1;
     break;
 
   case WR_USB_DATA1:
     // Check that we haven't exceeded the maximum data from the CPU
     if (bufindex == maxcnt) {
-	fprintf(stderr, "More data than maxcnt in CH375\n"); exit(1);
+      fprintf(stderr, "More data than maxcnt in CH375\n");
+      exit(1);
     }
     // Store the data in the buffer
     buf[bufindex++] = data;
     // Write the data to the file if we've hit maxcnt
     if (bufindex == maxcnt) {
       if ((err = fwrite(buf, 64, 1, disk)) != 1) {
-	fprintf(stderr, "CH375 write error\n"); exit(1);
+	fprintf(stderr, "CH375 write error\n");
+	exit(1);
       }
       fflush(disk);
-      bufindex = 0; maxcnt = 0;
+      bufindex = 0;
+      maxcnt = 0;
     }
     break;
 
   default:
-    fprintf(stderr, "Received unwanted CH375 data after cmd %d\n", prevcmd); exit(1);
+    fprintf(stderr, "Received unwanted CH375 data after cmd %d\n", prevcmd);
+    exit(1);
   }
   return (0);
 }

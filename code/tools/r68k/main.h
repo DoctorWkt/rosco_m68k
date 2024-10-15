@@ -25,8 +25,7 @@ void cpu_write_word(unsigned int address, unsigned int value);
 void cpu_write_long(unsigned int address, unsigned int value);
 void cpu_pulse_reset(void);
 void make_hex(char *buff, unsigned int pc, unsigned int length);
-void print_regs(FILE *fh);
+void print_regs(FILE * fh);
 void attach_sigalrm(void);
 void detach_sigalrm(void);
 void set_timer(void);
-

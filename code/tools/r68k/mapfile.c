@@ -49,23 +49,26 @@ void read_mapfile(char *filename) {
     for (i = 0; i < mapcnt; i++)
       free(maparray[i].sym);
     free(maparray);
-    mapidx=mapcnt=0;
+    mapidx = mapcnt = 0;
   }
-
   // Set up the regular expression we use
   // to match entries in the file
-  re= "^  *0x([0-9A-Z][0-9A-Z]*)  *(\\w\\w*)";
-  if (regcomp(&regex, re, REG_ICASE|REG_EXTENDED))
+  re = "^  *0x([0-9A-Z][0-9A-Z]*)  *(\\w\\w*)";
+  if (regcomp(&regex, re, REG_ICASE | REG_EXTENDED))
     errx(EXIT_FAILURE, "regcomp failed");
-  
+
   // Open the file, read in each line and count
   // lines that match the regular expression
   zin = fopen(filename, "r");
-  if (zin == NULL) { warnx("Unable to open %s\n", filename); return; }
+  if (zin == NULL) {
+    warnx("Unable to open %s\n", filename);
+    return;
+  }
 
   while (1) {
-    if (fgets(buf, 1023, zin) == NULL) break;
-    if (regexec(&regex, buf, ARRAY_SIZE(pmatch), pmatch, 0)==0) {
+    if (fgets(buf, 1023, zin) == NULL)
+      break;
+    if (regexec(&regex, buf, ARRAY_SIZE(pmatch), pmatch, 0) == 0) {
       mapcnt++;
     }
   }
@@ -75,21 +78,23 @@ void read_mapfile(char *filename) {
   // Add room for an extra empty element.
   maparray =
     (struct mapentry *) malloc((mapcnt + 1) * sizeof(struct mapentry));
-  if (maparray == NULL) err(EXIT_FAILURE, NULL);
+  if (maparray == NULL)
+    err(EXIT_FAILURE, NULL);
 
   // Now re-read the file, extracting the symbol and address
   zin = fopen(filename, "r");
 
   while (1) {
-    if (fgets(buf, 1023, zin) == NULL) break;
-    if (regexec(&regex, buf, ARRAY_SIZE(pmatch), pmatch, 0)==0) {
+    if (fgets(buf, 1023, zin) == NULL)
+      break;
+    if (regexec(&regex, buf, ARRAY_SIZE(pmatch), pmatch, 0) == 0) {
       // Convert the hex address into decimal
-      maparray[i].addr = strtol( &(buf[ pmatch[1].rm_so ]), NULL, 16);
+      maparray[i].addr = strtol(&(buf[pmatch[1].rm_so]), NULL, 16);
 
       // Terminate the symbol's name with a NUL
       // before we try to strdup() it
-      buf[ pmatch[2].rm_eo ]= '\0';
-      maparray[i].sym = strdup(&(buf[ pmatch[2].rm_so ]));
+      buf[pmatch[2].rm_eo] = '\0';
+      maparray[i].sym = strdup(&(buf[pmatch[2].rm_so]));
       i++;
     }
   }
@@ -111,13 +116,14 @@ void read_mapfile(char *filename) {
 int get_sym_address(char *sym) {
   int i;
 
-  if (sym==NULL || *sym=='\0') return(-1);
+  if (sym == NULL || *sym == '\0')
+    return (-1);
 
   for (i = 0; i < mapcnt; i++) {
     if (!strcmp(maparray[i].sym, sym))
-      return(maparray[i].addr);
+      return (maparray[i].addr);
   }
-  return(-1);
+  return (-1);
 }
 
 // Given a string, return the end address of
@@ -126,7 +132,8 @@ int get_sym_address(char *sym) {
 int get_sym_end_address(char *sym) {
   int i, j;
 
-  if (sym==NULL || *sym=='\0') return(-1);
+  if (sym == NULL || *sym == '\0')
+    return (-1);
 
   // Find the index of the symbol
   for (i = 0; i < mapcnt; i++)
@@ -134,19 +141,19 @@ int get_sym_end_address(char *sym) {
       break;
 
   // Symbol not found, return error
-  if (i==mapcnt)
-    return(-1);
+  if (i == mapcnt)
+    return (-1);
 
   // Now find the next map entry
   // with a higher address. We
   // can go past the end with the
   // extra element
-  for (j = i+1; j <= mapcnt; j++)
+  for (j = i + 1; j <= mapcnt; j++)
     if (maparray[j].addr > maparray[i].addr)
-      return(maparray[j].addr - 1);
+      return (maparray[j].addr - 1);
 
   // No symbol with a higher address, error
-  return(-1);
+  return (-1);
 }
 
 // Given an address, return a string which
@@ -157,21 +164,22 @@ int get_sym_end_address(char *sym) {
 char *get_symbol_and_offset(unsigned int addr, int *offset) {
 
   // No symbols
-  if (mapcnt == 0) return (NULL);
+  if (mapcnt == 0)
+    return (NULL);
 
   // Error check
-  if (offset == NULL) return (NULL);
+  if (offset == NULL)
+    return (NULL);
 
   // mapidx points at the last symbol used. If the address
   // is at/between this symbol and the next one, use it
-  if ((maparray[mapidx].addr <= addr) && (maparray[mapidx+1].addr > addr)) {
+  if ((maparray[mapidx].addr <= addr) && (maparray[mapidx + 1].addr > addr)) {
     *offset = addr - maparray[mapidx].addr;
     return (maparray[mapidx].sym);
   }
-
   // No luck. Search the whole list to find a suitable symbol
   for (mapidx = 0; mapidx < mapcnt; mapidx++) {
-    if ((maparray[mapidx].addr <= addr) && (maparray[mapidx+1].addr > addr)) {
+    if ((maparray[mapidx].addr <= addr) && (maparray[mapidx + 1].addr > addr)) {
       *offset = addr - maparray[mapidx].addr;
       return (maparray[mapidx].sym);
     }
