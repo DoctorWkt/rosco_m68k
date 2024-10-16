@@ -337,6 +337,9 @@ void m68k_end_timeslice(void);          /* End timeslice now */
  */
 void m68k_set_irq(unsigned int int_level);
 
+// Get the current interrupt level
+unsigned int m68k_get_irq(void);
+
 /* Set the virtual irq lines, where the highest level
  * active line is automatically selected.  If you use this function,
  * do not use m68k_set_irq.

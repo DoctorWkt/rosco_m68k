@@ -1050,6 +1050,11 @@ void m68k_set_irq(unsigned int int_level)
 		m68ki_cpu.nmi_pending = TRUE;
 }
 
+// Get the current interrupt level
+unsigned int m68k_get_irq(void) {
+  return(CPU_INT_LEVEL >> 8);
+}
+
 void m68k_set_virq(unsigned int level, unsigned int active)
 {
 	uint state = m68ki_cpu.virq_state;

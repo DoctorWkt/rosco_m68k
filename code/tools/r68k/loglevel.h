@@ -11,5 +11,6 @@
 #define LOG_SDCARD	0x40	// SD Card operations
 #define LOG_IOACCESS	0x80	// Hardware I/O operations
 #define LOG_CH375	0x100	// CH375 operations
+#define LOG_CH375_DATA	0x200	// CH375 data movements
 
 #endif

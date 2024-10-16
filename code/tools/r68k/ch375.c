@@ -82,7 +82,7 @@ uint8_t read_ch375_data(void) {
   // Once there is no data, go back to awaiting a command.
   data = buf[bufindex++];
   bufcnt--;
-  if (logfh != NULL && (loglevel & LOG_CH375) == LOG_CH375) {
+  if (logfh != NULL && (loglevel & LOG_CH375_DATA) == LOG_CH375_DATA) {
     fprintf(logfh, "CH375 returning data 0x%x bufcnt %d\n", data, bufcnt);
   }
   return (data);
@@ -201,7 +201,7 @@ uint8_t send_ch375_cmd(uint8_t cmd) {
     if (gocount == 8) status = USB_INT_SUCCESS;
     else status = USB_INT_DISK_READ;
     if (logfh != NULL && (loglevel & LOG_CH375) == LOG_CH375) {
-      fprintf(logfh, "CH375 sending interrupt, status %d\n", status);
+      fprintf(logfh, "CH375 sending interrupt, status 0x%x\n", status);
     }
     return (1);
   case DISK_WR_GO:
@@ -210,7 +210,7 @@ uint8_t send_ch375_cmd(uint8_t cmd) {
     if (gocount == 8) status = USB_INT_SUCCESS;
     else status = USB_INT_DISK_WRITE;
     if (logfh != NULL && (loglevel & LOG_CH375) == LOG_CH375) {
-      fprintf(logfh, "CH375 sending interrupt, status %d\n", status);
+      fprintf(logfh, "CH375 sending interrupt, status 0x%x\n", status);
     }
     return (1);
 
@@ -228,7 +228,7 @@ uint8_t send_ch375_data(uint8_t data) {
   off_t offset;
   int err;
 
-  if (logfh != NULL && (loglevel & LOG_CH375) == LOG_CH375) {
+  if (logfh != NULL && (loglevel & LOG_CH375_DATA) == LOG_CH375_DATA) {
     fprintf(logfh, "CH375 got data 0x%x\n", data);
   }
 
@@ -244,6 +244,9 @@ uint8_t send_ch375_data(uint8_t data) {
     }
     // Put the status into the buffer and also send an interrupt
     status = USB_INT_CONNECT; bufindex = 0; bufcnt = 1; buf[0] = status;
+    if (logfh != NULL && (loglevel & LOG_CH375) == LOG_CH375) {
+      fprintf(logfh, "CH375 sending interrupt, status USB_INT_CONNECT\n");
+    }
     return (1);
   case DISK_READ:
     // Put the data into the buffer unless there's too much
@@ -276,6 +279,9 @@ uint8_t send_ch375_data(uint8_t data) {
 	fprintf(stderr, "CH375 read error offset %ld\n", offset); exit(1);
       }
       bufindex = 0; bufindex = 0; bufcnt = 64; status = USB_INT_DISK_READ;
+      if (logfh != NULL && (loglevel & LOG_CH375) == LOG_CH375) {
+        fprintf(logfh, "CH375 sending interrupt, status USB_INT_DISK_READ\n");
+      }
       return (1);
     }
     break;
@@ -309,6 +315,9 @@ uint8_t send_ch375_data(uint8_t data) {
       }
 
       bufindex = 0; status = USB_INT_DISK_WRITE;
+      if (logfh != NULL && (loglevel & LOG_CH375) == LOG_CH375) {
+        fprintf(logfh, "CH375 sending interrupt, status USB_INT_DISK_WRITE\n");
+      }
       return (1);
     }
     break;
@@ -339,7 +348,8 @@ uint8_t send_ch375_data(uint8_t data) {
     break;
 
   default:
-    fprintf(stderr, "Received unwanted CH375 data after cmd %d\n", prevcmd);
+    fprintf(stderr, "Received unwanted CH375 data 0x%x after cmd 0x%x\n",
+	data, prevcmd);
     exit(1);
   }
   return (0);

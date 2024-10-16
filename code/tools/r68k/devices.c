@@ -796,7 +796,7 @@ int interrupt_ack_handler(unsigned int irq) {
 
   switch (irq) {
   case DUART_IRQ:
-    // DUART timer tick - vector to 0x45
+    // DUART timer tick - vector to 0x45 (irq4)
     m68k_set_irq(0);
     return DUART_VEC;
   case CH375_IRQ:
