@@ -315,7 +315,7 @@ void set_timer() {
 // The periodic timer handler
 void timer_interrupt() {
 
-  m68k_set_irq(DUART_IRQ);
+  int_controller_set(DUART_IRQ);
   set_timer();
 }
 

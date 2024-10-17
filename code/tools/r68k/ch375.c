@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include "loglevel.h"
+#include "devices.h"
 
 // List of known commands
 #define GET_IC_VER	0x01
@@ -150,7 +151,8 @@ uint8_t send_ch375_cmd(uint8_t cmd) {
     }
     return (1);
   case GET_STATUS:
-    // Nothing to do here
+    // Clear the interrupt
+    int_controller_clear(CH375_IRQ);
     break;
   case DISK_SIZE:
     // Get the file's size

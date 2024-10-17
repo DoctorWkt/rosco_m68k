@@ -54,10 +54,10 @@
 // SPI defines
 #define SPI_OUTBIT	0x00f0001d
 #define SPI_ASSERTCS0	0x04
-#define SPI_OUTMASK	0x40		// This bit inverse of output bit
-#define SPI_OUTPUT	0x10		// If set, is a bit send
+#define SPI_OUTMASK	0x40	// This bit inverse of output bit
+#define SPI_OUTPUT	0x10	// If set, is a bit send
 #define SPI_INBIT	0x00f0001b
-#define SPI_INMASK	0x04		// Bit to set if receiving a 1 bit
+#define SPI_INMASK	0x04	// Bit to set if receiving a 1 bit
 
 // Xosera addresses
 #define XM_BASEADDR	0x00f80060
@@ -127,9 +127,9 @@ char read_char() {
 static uint8_t ivr_value = 0x0f;
 static uint8_t spi_outvalue = 0;	// Data sent by CPU via SPI
 static uint8_t spi_outcount = 0;	// Count of bits received
-static uint8_t spi_invalue = 0;		// Data to be received via SPI
-static uint8_t spi_incount = 0;		// Count of bits received
-static uint8_t spi_isdata = 0;		// Is there data to receive?
+static uint8_t spi_invalue = 0;	// Data to be received via SPI
+static uint8_t spi_incount = 0;	// Count of bits received
+static uint8_t spi_isdata = 0;	// Is there data to receive?
 
 // Print a log message.
 void unimplemented_io(unsigned int address, unsigned int value,
@@ -158,7 +158,7 @@ unsigned int io_read_byte(unsigned int address) {
   uint8_t *dataptr;
 
   switch (address) {
-  				// UART
+    // UART
   case DUART_SRA:		// Get the status of port A
     value = 8;			// Port A is writable
     if (check_char())
@@ -178,18 +178,18 @@ unsigned int io_read_byte(unsigned int address) {
   case DUART_ISR:		// Counter interrupt
     return (8);
 
-    				// Xosera: say that it doesn't exist
+    // Xosera: say that it doesn't exist
   case XM_BASEADDR:
     // Write 1 to address BERR_FLAG to indicate
     // that there is no RAM at this address
     cpu_write_byte(BERR_FLAG, 1);
     return (0);
 
-    				// CH375
+    // CH375
   case CH375_DATADDR:
     return (read_ch375_data());
 
-    				// SPI
+    // SPI
   case SPI_INBIT:
     // If there is no data to receive
     if (spi_isdata == 0) {
@@ -247,7 +247,7 @@ void io_write_byte(unsigned int address, unsigned int value) {
   uint8_t result;
 
   switch (address) {
-    				// UART
+    // UART
   case DUART_TBA:		// Send a character on port A
     fputc(value & 0xFF, stdout);
     fflush(stdout);
@@ -258,10 +258,12 @@ void io_write_byte(unsigned int address, unsigned int value) {
   case W_CLKSEL_B:
 
     // Turn off the 100Hz heartbeat
-    if ((value & 0xff) == 0) detach_sigalrm();
+    if ((value & 0xff) == 0)
+      detach_sigalrm();
 
     // Turn on the 100Hz heartbeat
-    if ((value & 0xff) == 8) attach_sigalrm();
+    if ((value & 0xff) == 8)
+      attach_sigalrm();
 
     return;
   case W_OPR_RESETCMD:
@@ -279,20 +281,20 @@ void io_write_byte(unsigned int address, unsigned int value) {
     return;
 
 
-    				// CH375: If we get a true result back,
-    				// then generate a level 5 interrupt.
+    // CH375: If we get a true result back,
+    // then generate a level 5 interrupt.
   case CH375_DATADDR:
     result = send_ch375_data(value & 0xff);
     if (result)
-      m68k_set_irq(CH375_IRQ);
+      int_controller_set(CH375_IRQ);
     return;
   case CH375_CMDADDR:
     result = send_ch375_cmd(value & 0xff);
     if (result)
-      m68k_set_irq(CH375_IRQ);
+      int_controller_set(CH375_IRQ);
     return;
 
-    				// Expansion RAM base register
+    // Expansion RAM base register
   case BASE_REG:
     if (value > 15)
       errx(1, "Base register cannot be >15, being set to %d\n", value);
@@ -302,7 +304,7 @@ void io_write_byte(unsigned int address, unsigned int value) {
     }
     return;
 
-    					// SPI
+    // SPI
   case SPI_OUTBIT:
     // If CS) has been asserted
     if (value & SPI_ASSERTCS0) {
@@ -345,7 +347,7 @@ void io_write_byte(unsigned int address, unsigned int value) {
 
 void io_write_word(unsigned int address, unsigned int value) {
   switch (address) {
-    					// ATA
+    // ATA
   case ATA_REG_WR_DEVICE_CTL:
     // Write 1 to address BERR_FLAG to indicate
     // that there is nothing at this address
@@ -788,25 +790,78 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
   return 1;
 }
 
-int interrupt_ack_handler(unsigned int irq) {
+// Interrupt handling
 
+uint32_t g_int_controller_pending = 0;		// Bit list of pending interrupts
+uint32_t g_int_controller_highest_int = 0;	// Highest pending interrupt
+
+// Called when the CPU acknowledges an interrupt.
+// Clear that interrupt level and set the PC to
+// the relevant interrupt vector.
+int cpu_irq_ack(int irq) {
   if (logfh != NULL && (loglevel & LOG_INTACK) == LOG_INTACK) {
-    fprintf(logfh, "interrupt_ack_handler, irq %d\n", irq);
+    fprintf(logfh, "cpu_irq_ack,     irq %d\n", irq);
   }
 
   switch (irq) {
   case DUART_IRQ:
-    // DUART timer tick - vector to 0x45 (irq4)
-    m68k_set_irq(0);
+    // DUART timer tick - vector to DUART_VEC (irq4)
+    int_controller_clear(DUART_IRQ);
     return DUART_VEC;
   case CH375_IRQ:
     // CH375 interrupt - vector to CH375_VEC (irq5)
-    m68k_set_irq(0);
+    // Note: we lower the interrupt level when the CH375
+    // received the GET_STATUS command
     return CH375_VEC;
   default:
-    fprintf(stderr,
-	    "WARN: Unexpected IRQ %d; Autovectoring, but machine will probably lock up!\n",
-	    irq);
+    fprintf(stderr, "WARN: Unexpected IRQ %d; Autovectoring...\n", irq);
     return M68K_INT_ACK_AUTOVECTOR;
   }
+}
+
+// Implementation for the interrupt controller
+void int_controller_set(unsigned int value) {
+  unsigned int old_pending = g_int_controller_pending;
+
+  // Set the 2^value bit in the pending bit list
+  g_int_controller_pending |= (1 << value);
+
+  if (logfh != NULL && (loglevel & LOG_INTACK) == LOG_INTACK) {
+    fprintf(logfh, "int_controller_set   %d, pending 0x%x\n",
+	value, g_int_controller_pending);
+  }
+
+  // If the value is higher than the previous value,
+  // tell the CPU about that interrupt
+  if (old_pending != g_int_controller_pending
+      && value > g_int_controller_highest_int) {
+    g_int_controller_highest_int = value;
+    if (logfh != NULL && (loglevel & LOG_INTACK) == LOG_INTACK) {
+      fprintf(logfh, "Doing   m68k_set_irq(%d)\n", g_int_controller_highest_int);
+    }
+    m68k_set_irq(g_int_controller_highest_int);
+  }
+}
+
+void int_controller_clear(unsigned int value) {
+
+  // Clear the 2^value bit in the bit list
+  g_int_controller_pending &= ~(1 << value);
+
+  if (logfh != NULL && (loglevel & LOG_INTACK) == LOG_INTACK) {
+    fprintf(logfh, "int_controller_clear %d, pending 0x%x\n",
+	value, g_int_controller_pending);
+  }
+
+  // Find the highest interrupt value (could be 0) left in the bit list
+  for (g_int_controller_highest_int = 7; g_int_controller_highest_int > 0;
+       g_int_controller_highest_int--)
+    if (g_int_controller_pending & (1 << g_int_controller_highest_int))
+      break;
+
+  if (logfh != NULL && (loglevel & LOG_INTACK) == LOG_INTACK) {
+    fprintf(logfh, "Doing   m68k_set_irq(%d)\n", g_int_controller_highest_int);
+  }
+  // Set the current interrupt level to the highest, or 0 if none
+  m68k_set_irq(g_int_controller_highest_int);
 }

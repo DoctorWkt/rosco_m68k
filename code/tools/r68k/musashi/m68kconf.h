@@ -91,7 +91,7 @@ int interrupt_ack_handler(unsigned int);
  * auto-clear when the interrupt is serviced.
  */
 #define M68K_EMULATE_INT_ACK        OPT_SPECIFY_HANDLER
-#define M68K_INT_ACK_CALLBACK(A)    interrupt_ack_handler(A)
+#define M68K_INT_ACK_CALLBACK(A)    cpu_irq_ack(A)
 
 
 /* If ON, CPU will call the breakpoint acknowledge callback when it encounters

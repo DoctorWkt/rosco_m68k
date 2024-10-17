@@ -12,7 +12,9 @@ void io_write_word(unsigned int address, unsigned int value);
 void io_write_long(unsigned int address, unsigned int value);
 
 int illegal_instruction_handler(int opcode);
-int interrupt_ack_handler(unsigned int irq);
+int cpu_irq_ack(int irq);
+void int_controller_set(unsigned int value);
+void int_controller_clear(unsigned int value);
 
 #define DUART_IRQ       4
 #define DUART_VEC       69
