@@ -13,6 +13,8 @@
 #include "mapfile.h"
 #include "monitor.h"
 
+extern int loglevel;
+
 // Fill a buffer with the disassembly of the
 // instruction at the given address. Return
 // the address of the next instruction. The
@@ -41,6 +43,7 @@ enum cmd_numbers {
   CMD_EXIT,
   CMD_GO,
   CMD_NOBRK,
+  CMD_LOGLEVEL,
   CMD_PRINT,
   CMD_QUIT,
   CMD_RBRK,
@@ -76,6 +79,8 @@ static command cmd_table[] = {
   {"wbrk", CMD_WBRK},
   {"nb", CMD_NOBRK},
   {"nbrk", CMD_NOBRK},
+  {"l", CMD_LOGLEVEL},
+  {"loglevel", CMD_LOGLEVEL},
   {NULL, 0}
 };
 
@@ -349,6 +354,7 @@ static void monitor_usage() {
   printf("wb, wbrk <addr>           - set a write breakpoint at <addr>\n");
   printf
     ("nb, nbrk [<addr>]         - remove breakpoint at <addr>, or all\n\n");
+  printf("l, loglevel [<num>]       - set or show the logging level\n");
 
   printf("Addresses and Values\n\n");
   printf("Decimal literals start with [0-9], e.g. 23\n");
@@ -479,6 +485,16 @@ int monitor(int curpc) {
 	set_timer();
 	return (addr);
       }
+      break;
+
+    case CMD_LOGLEVEL:
+      if (arg_count != 2) {
+	printf("  Current logging level: %d, 0x%x\n", loglevel, loglevel);
+	break;
+      }
+      val = parse_addr_msg(arg[1], NULL);
+      if (addr != -1)
+	loglevel= val;
       break;
 
     case CMD_DISASM:
