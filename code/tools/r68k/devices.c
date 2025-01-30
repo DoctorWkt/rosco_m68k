@@ -160,23 +160,26 @@ unsigned int io_read_byte(unsigned int address) {
   switch (address) {
     // UART
   case DUART_SRA:		// Get the status of port A
-    value = 8;			// Port A is writable
+    value = 12;			// Port A is writable
     if (check_char())
-      value = 9;		// Writeable and ready to read
+      value = 13;		// Writeable and ready to read
     return (value);
   case DUART_RBA:		// Read a character from port A
     return (read_char());
   case DUART_IVR:
     return (ivr_value);
   case DUART_SRB:		// Get status of port B
-    return (8);			// Writeable, but for now writes
+    return (12);		// Writeable, but for now writes
     // are discarded. To fix later
     // with a socket.
   case R_STOPCNTCMD:
   case R_STARTCNTCMD:
     return (0);
   case DUART_ISR:		// Counter interrupt
-    return (8);
+    value= 8;
+    if (check_char())
+      value= 10;
+    return (value);
 
     // Xosera: say that it doesn't exist
   case XM_BASEADDR:
