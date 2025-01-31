@@ -1,15 +1,15 @@
-# r68k
+# The r68k Emulator
 
-`r68k` provides two forms of emulation:
+The `r68k` emulator provides two forms of emulation:
 
-1. It emulates many of the ROM system calls (traps 13, 14 and 15).
+1. It emulates many of the Rosco ROM system calls (traps 13, 14 and 15).
    Using the firmware in the `firmware/` directory, you can run
    native rosco_m68k binaries on your modern computer: examples
    are the binaries created in the `../../software` sub-directories
    such as 2dmaze, adventure, dhrystone, easy68k-demo, ehbasic, life,
    memcheck, sdfat_menu and vterm.
 
-2. `r68k` also emulates the DUART hardware including the 100Hz clock
+2. `r68k` also emulates the hardware including the DUART, the 100Hz clock
    tick and the SPI bit-banged SD card. Using the real `rosco_m68k.rom`
    (with the `-S` command-line option) you can boot the system up as if
    it was the real hardware. It also emulates the CH375 device and the
@@ -43,35 +43,36 @@ and run the Game of Life in your terminal.
 Usage: ./r68k [flags] executable_file
 
 Flags are:
-  -L logfile            Log debug info to this file
+  -L logfile            Log execution info to this file
   -M mapfile            Load symbols from a map file
   -R romfile            Use the file as the ROM image
   -S sdcardfile         Attach SD card image file
-  -a addr               Load executable at dec/$hex addr 
+  -U USB_image          Attach USB image file
+  -a addr               Load executable at dec/$hex addr
   -b addr [-b addr2]    Set breakpoint(s) at symbol or dec/$hex addr
-  -l value              Set dec/$hex bitmap of debug flags
+  -l value              Set dec/$hex bitmap of log levels (default 0)
   -m                    Start in the monitor
-```
 
-The available debug flags are:
+If -R used, executable_file is optional.
+If ./r68k receives a SIGUSR1, the monitor is started.
 
+Available log levels (which can be OR'd) are:
+  $1	Instruction disassembly
+  $2	Register dump
+  $4	Hardware I/O operations
+  $8	SD Card operations
+  $10	SD Card data movements
+  $20	CH375 operations
+  $40	CH375 data movements
+  $80	Memory accesses
+  $100	Invalid memory accesses
+  $200	Illegal instructions
+  $400	Interrupt acknowledgements
 ```
-0x01   Memory accesses
-0x02   Invalid memory accesses
-0x04   Instruction disassembly
-0x08   Register dump
-0x10   Illegal instruction handler
-0x20   Interrupt acknowledge handler
-0x40   SD Card operations
-0x80   I/O Access operations
-```
-
-Unless specified, the default debug flags will disassemble instructions and
-dump the registers after each instruction.
 
 If not specified, the default ROM image is `firmware/rosco_m68k.rom`,
 i.e. a file relative to the location of the `r68k` program.
-There is no default SD card filename.
+There is no default SD or USB filename.
 
 If your executable was linked using `m68k-elf-ld -T -Map=<name>.map ...`
 to create a map file with symbols and addresses, then you can use the
@@ -107,13 +108,13 @@ b, brk [<addr>]           - set instruction breakpoint at <addr> or
                             show list of breakpoints
 wb, wbrk <addr>           - set a write breakpoint at <addr>
 nb, nbrk [<addr>]         - remove breakpoint at <addr>, or all
+l, loglevel [<num>]       - set or show the logging level
 
 Addresses and Values
-
-Decimal literals start with [0-9], e.g. 23
-Hexadecimal literals start with $, e.g. $1234
-Symbols start with _ or [A-Za-z], e.g. _printf
-Symbols + offset, e.g. _printf+23, _printf+$100
+  Decimal literals start with [0-9], e.g. 23
+  Hexadecimal literals start with $, e.g. $1234
+  Symbols start with _ or [A-Za-z], e.g. _printf
+  Synbols + offset, e.g. _printf+23, _printf+$100
 ```
 
 ## Emulating the Real Hardware
