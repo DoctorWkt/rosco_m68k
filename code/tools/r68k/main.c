@@ -91,7 +91,7 @@ void initialise_memory(const char *romfilename) {
   g_exp = (uint8_t *) calloc(1, EXP_SIZE);
   if (g_exp == NULL) err(EXIT_FAILURE, NULL);
 
-  if (logfh != NULL && (loglevel & LOG_MEMACCESS) == LOG_MEMACCESS) {
+  if (logfh != NULL && (loglevel & LOG_MEMACCESS)) {
     fprintf(logfh, "Initialized with %d bytes RAM and %d bytes ROM\n",
 	    RAM_SIZE, ROM_SIZE);
   }
@@ -123,7 +123,7 @@ uint8_t *emuAddress(uint32_t address, int iswrite) {
   // buf if RAM_BASE is ever >0 then we should put it back in.
   if (address < RAM_BASE + RAM_SIZE) {
 
-    if (logfh != NULL && (loglevel & LOG_MEMACCESS) == LOG_MEMACCESS) {
+    if (logfh != NULL && (loglevel & LOG_MEMACCESS)) {
       fprintf(logfh, "RAM relative address is: 0x%x\n", address);
     }
     return (&(g_ram[address]));
@@ -132,13 +132,13 @@ uint8_t *emuAddress(uint32_t address, int iswrite) {
 
     // If it's a write, return NULL
     if (iswrite) {
-      if (logfh != NULL && (loglevel & LOG_MEMACCESS) == LOG_MEMACCESS) {
+      if (logfh != NULL && (loglevel & LOG_MEMACCESS)) {
 	fprintf(logfh, "ROM write to address 0x%x\n", address);
       }
       return (NULL);
     }
 
-    if (logfh != NULL && (loglevel & LOG_MEMACCESS) == LOG_MEMACCESS) {
+    if (logfh != NULL && (loglevel & LOG_MEMACCESS)) {
       fprintf(logfh, "ROM relative address is: 0x%x\n", address - ROM_BASE);
     }
     return (&(g_rom[address - ROM_BASE]));
@@ -151,7 +151,7 @@ uint8_t *emuAddress(uint32_t address, int iswrite) {
     if (physaddr >= EXP_BASE + EXP_SIZE)
       physaddr -= EXP_BASE;
 
-    if (logfh != NULL && (loglevel & LOG_MEMACCESS) == LOG_MEMACCESS) {
+    if (logfh != NULL && (loglevel & LOG_MEMACCESS)) {
       fprintf(logfh, "EXPRAM address 0x%x + basereg 0x%x => physaddr 0x%x\n",
 	      address, base_register, physaddr);
       fprintf(logfh, "EXPRAM relative address is: 0x%x\n",
@@ -161,7 +161,7 @@ uint8_t *emuAddress(uint32_t address, int iswrite) {
 
   }
 
-  if (logfh != NULL && (loglevel & LOG_BUSERROR) == LOG_BUSERROR) {
+  if (logfh != NULL && (loglevel & LOG_BUSERROR)) {
     fprintf(logfh, "BUSERROR at address 0x%X\n", address);
   }
   return (NULL);
@@ -565,7 +565,7 @@ int main(int argc, char *argv[]) {
     pc = m68ki_cpu.pc;
 
     // Log the disassembly of the next instruction
-    if (logfh != NULL && (loglevel & LOG_INSTDECODE) == LOG_INSTDECODE) {
+    if (logfh != NULL && (loglevel & LOG_INSTDECODE)) {
 
       // Disassemble the instruction and
       // get the instruction bytes in hex
@@ -598,7 +598,7 @@ int main(int argc, char *argv[]) {
     m68k_execute(1);
 
     // Dump the registers after the instruction
-    if (logfh != NULL && (loglevel & LOG_REGDUMP) == LOG_REGDUMP) {
+    if (logfh != NULL && (loglevel & LOG_REGDUMP)) {
       print_regs(logfh);
     }
   }

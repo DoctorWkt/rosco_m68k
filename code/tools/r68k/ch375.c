@@ -83,7 +83,7 @@ uint8_t read_ch375_data(void) {
   // Once there is no data, go back to awaiting a command.
   data = buf[bufindex++];
   bufcnt--;
-  if (logfh != NULL && (loglevel & LOG_CH375_DATA) == LOG_CH375_DATA) {
+  if (logfh != NULL && (loglevel & LOG_CH375_DATA)) {
     fprintf(logfh, "CH375 returning data 0x%x bufcnt %d\n", data, bufcnt);
   }
   return (data);
@@ -101,7 +101,7 @@ uint8_t send_ch375_cmd(uint8_t cmd) {
   int err;
   long posn;
 
-  if (logfh != NULL && (loglevel & LOG_CH375) == LOG_CH375) {
+  if (logfh != NULL && (loglevel & LOG_CH375)) {
     fprintf(logfh, "CH375 got command ");
     switch (cmd) {
       case GET_IC_VER: fprintf(logfh, "GET_IC_VER\n"); break;
@@ -146,7 +146,7 @@ uint8_t send_ch375_cmd(uint8_t cmd) {
       exit(1);
     }
     status = USB_INT_SUCCESS;
-    if (logfh != NULL && (loglevel & LOG_CH375) == LOG_CH375) {
+    if (logfh != NULL && (loglevel & LOG_CH375)) {
       fprintf(logfh, "CH375 sending interrupt, status USB_INT_SUCCESS\n");
     }
     return (1);
@@ -174,7 +174,7 @@ uint8_t send_ch375_cmd(uint8_t cmd) {
 
     // Send an interrupt
     bufindex = 0; bufcnt = 8; status = USB_INT_SUCCESS;
-    if (logfh != NULL && (loglevel & LOG_CH375) == LOG_CH375) {
+    if (logfh != NULL && (loglevel & LOG_CH375)) {
       fprintf(logfh, "CH375 sending interrupt, status USB_INT_SUCCESS\n");
     }
     return (1);
@@ -202,7 +202,7 @@ uint8_t send_ch375_cmd(uint8_t cmd) {
     bufindex = 0; bufcnt = 64; gocount++;
     if (gocount == 8) status = USB_INT_SUCCESS;
     else status = USB_INT_DISK_READ;
-    if (logfh != NULL && (loglevel & LOG_CH375) == LOG_CH375) {
+    if (logfh != NULL && (loglevel & LOG_CH375)) {
       fprintf(logfh, "CH375 sending interrupt, status 0x%x\n", status);
     }
     return (1);
@@ -211,7 +211,7 @@ uint8_t send_ch375_cmd(uint8_t cmd) {
     gocount++;
     if (gocount == 8) status = USB_INT_SUCCESS;
     else status = USB_INT_DISK_WRITE;
-    if (logfh != NULL && (loglevel & LOG_CH375) == LOG_CH375) {
+    if (logfh != NULL && (loglevel & LOG_CH375)) {
       fprintf(logfh, "CH375 sending interrupt, status 0x%x\n", status);
     }
     return (1);
@@ -230,7 +230,7 @@ uint8_t send_ch375_data(uint8_t data) {
   off_t offset;
   int err;
 
-  if (logfh != NULL && (loglevel & LOG_CH375_DATA) == LOG_CH375_DATA) {
+  if (logfh != NULL && (loglevel & LOG_CH375_DATA)) {
     fprintf(logfh, "CH375 got data 0x%x\n", data);
   }
 
@@ -246,7 +246,7 @@ uint8_t send_ch375_data(uint8_t data) {
     }
     // Put the status into the buffer and also send an interrupt
     status = USB_INT_CONNECT; bufindex = 0; bufcnt = 1; buf[0] = status;
-    if (logfh != NULL && (loglevel & LOG_CH375) == LOG_CH375) {
+    if (logfh != NULL && (loglevel & LOG_CH375)) {
       fprintf(logfh, "CH375 sending interrupt, status USB_INT_CONNECT\n");
     }
     return (1);
@@ -270,7 +270,7 @@ uint8_t send_ch375_data(uint8_t data) {
       }
       offset =
 	512 * (buf[0] + (buf[1] << 8) + (buf[2] << 16) + (buf[3] << 24));
-      if (logfh != NULL && (loglevel & LOG_CH375) == LOG_CH375) {
+      if (logfh != NULL && (loglevel & LOG_CH375)) {
         fprintf(logfh, "CH375 read from block %ld\n", offset/512);
       }
       if ((err = fseek(disk, offset, SEEK_SET)) == -1) {
@@ -281,7 +281,7 @@ uint8_t send_ch375_data(uint8_t data) {
 	fprintf(stderr, "CH375 read error offset %ld\n", offset); exit(1);
       }
       bufindex = 0; bufindex = 0; bufcnt = 64; status = USB_INT_DISK_READ;
-      if (logfh != NULL && (loglevel & LOG_CH375) == LOG_CH375) {
+      if (logfh != NULL && (loglevel & LOG_CH375)) {
         fprintf(logfh, "CH375 sending interrupt, status USB_INT_DISK_READ\n");
       }
       return (1);
@@ -309,7 +309,7 @@ uint8_t send_ch375_data(uint8_t data) {
       }
       offset =
 	512 * (buf[0] + (buf[1] << 8) + (buf[2] << 16) + (buf[3] << 24));
-      if (logfh != NULL && (loglevel & LOG_CH375) == LOG_CH375) {
+      if (logfh != NULL && (loglevel & LOG_CH375)) {
         fprintf(logfh, "CH375 write to block %ld\n", offset/512);
       }
       if ((err = fseek(disk, offset, SEEK_SET)) == -1) {
@@ -317,7 +317,7 @@ uint8_t send_ch375_data(uint8_t data) {
       }
 
       bufindex = 0; status = USB_INT_DISK_WRITE;
-      if (logfh != NULL && (loglevel & LOG_CH375) == LOG_CH375) {
+      if (logfh != NULL && (loglevel & LOG_CH375)) {
         fprintf(logfh, "CH375 sending interrupt, status USB_INT_DISK_WRITE\n");
       }
       return (1);

@@ -116,7 +116,7 @@ static void put_u32be(uint8_t * buf, uint32_t data) {
 static int imagewrite(uint32_t blk, uint8_t * data) {
   int err, cnt;
 
-  if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+  if (logfh != NULL && (loglevel & LOG_SD_DATA)) {
     fprintf(logfh, "Block data:\n  ");
     for (int i = 0; i < m_blksize; i++) {
       fprintf(logfh, "%02x ", data[i]);
@@ -132,7 +132,7 @@ static int imagewrite(uint32_t blk, uint8_t * data) {
 
   err = fseek(ifs, blk, SEEK_SET);
   if (err == -1) {
-    if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+    if (logfh != NULL && (loglevel & LOG_SDCARD)) {
       fprintf(logfh, "SD unable to fseek to %d for write\n", blk);
       return (0);
     }
@@ -155,12 +155,22 @@ static int imageread(uint32_t blk, uint8_t * data) {
 
   err = fseek(ifs, blk, SEEK_SET);
   if (err == -1) {
-    if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+    if (logfh != NULL && (loglevel & LOG_SDCARD)) {
       fprintf(logfh, "SD unable to fseek to %d for read\n", blk);
       return (0);
     }
   }
   cnt = fread(data, 1, m_blksize, ifs);
+
+  if (logfh != NULL && (loglevel & LOG_SD_DATA)) {
+    fprintf(logfh, "Block data:\n  ");
+    for (int i = 0; i < m_blksize; i++) {
+      fprintf(logfh, "%02x ", data[i]);
+      if ((i % 16) == 15)
+	fprintf(logfh, "\n  ");
+    }
+    fprintf(logfh, "\n");
+  }
 
   if (cnt == m_blksize)
     return (1);
@@ -199,7 +209,7 @@ void sdcard_init() {
 // Record that there is data ready to send via SPI
 static void send_data(uint16_t count, int new_state) {
 
-  if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+  if (logfh != NULL && (loglevel & LOG_SDCARD)) {
     fprintf(logfh, "SDCARD response: %d bytes: ", count);
     if (count > 15) fprintf(logfh, "\n  ");
     for (int i = 0; i < count; i++) {
@@ -261,7 +271,7 @@ void spi_latch_in(uint8_t m_in_latch) {
   case SD_STATE_WRITE_DATA:
     m_data[m_write_ptr++] = m_in_latch;
     if (m_write_ptr == (m_blksize + 2)) {
-      if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+      if (logfh != NULL && (loglevel & LOG_SDCARD)) {
 	fprintf(logfh, "writing LBA %d (0x%x), data %02x %02x %02x %02x\n",
 		m_blknext, m_blknext, m_data[0], m_data[1], m_data[2],
 		m_data[3]);
@@ -310,7 +320,7 @@ void spi_latch_in(uint8_t m_in_latch) {
 
 static void do_command() {
   if (((m_cmd[0] & 0xc0) == 0x40) && (m_cmd[5] & 1)) {
-    if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+    if (logfh != NULL && (loglevel & LOG_SDCARD)) {
       fprintf(logfh, "SDCARD: cmd %02d 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
 	      m_cmd[0] & 0x3f, m_cmd[1], m_cmd[2],
 	      m_cmd[3], m_cmd[4], m_cmd[5]);
@@ -414,7 +424,7 @@ static void do_command() {
 	if (m_type == SD_TYPE_V2) {
 	  blk /= m_blksize;
 	}
-	if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+	if (logfh != NULL && (loglevel & LOG_SDCARD)) {
 	  fprintf(logfh, "reading LBA %d (0x%x)\n", blk, blk);
 	}
 	imageread(blk, &m_data[4]);
@@ -497,7 +507,7 @@ static void do_command() {
       break;
 
     default:
-      if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+      if (logfh != NULL && (loglevel & LOG_SDCARD)) {
 	fprintf(logfh, "SDCARD: Unsupported %02x\n", m_cmd[0] & 0x3f);
       }
       clean_cmd = false;

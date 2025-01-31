@@ -226,21 +226,21 @@ unsigned int io_read_byte(unsigned int address) {
     return (value);
   }
 
-  if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
+  if (logfh != NULL && (loglevel & LOG_IOACCESS)) {
     unimplemented_io(address, 0, "byte read", 0);
   }
   return (0);
 }
 
 unsigned int io_read_word(unsigned int address) {
-  if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
+  if (logfh != NULL && (loglevel & LOG_IOACCESS)) {
     unimplemented_io(address, 0, "word read", 0);
   }
   return (0);
 }
 
 unsigned int io_read_long(unsigned int address) {
-  if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
+  if (logfh != NULL && (loglevel & LOG_IOACCESS)) {
     unimplemented_io(address, 0, "long read", 0);
   }
   return (0);
@@ -302,7 +302,7 @@ void io_write_byte(unsigned int address, unsigned int value) {
     if (value > 15)
       errx(1, "Base register cannot be >15, being set to %d\n", value);
     base_register = (value & 0xf) << 16;
-    if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
+    if (logfh != NULL && (loglevel & LOG_IOACCESS)) {
       fprintf(logfh, "EXPRAM base register set to 0x%x\n", base_register);
     }
     return;
@@ -330,7 +330,7 @@ void io_write_byte(unsigned int address, unsigned int value) {
 	// Send the received byte to the
 	// SD card command handler
 #if 0
-	if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
+	if (logfh != NULL && (loglevel & LOG_IOACCESS)) {
 	  if (spi_outvalue != 0xff)
 	    fprintf(logfh, "Latched SPI byte 0x%x\n", spi_outvalue);
 	}
@@ -343,7 +343,7 @@ void io_write_byte(unsigned int address, unsigned int value) {
     return;
   }
 
-  if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
+  if (logfh != NULL && (loglevel & LOG_IOACCESS)) {
     unimplemented_io(address, value, "byte write", 1);
   }
 }
@@ -358,13 +358,13 @@ void io_write_word(unsigned int address, unsigned int value) {
     return;
   }
 
-  if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
+  if (logfh != NULL && (loglevel & LOG_IOACCESS)) {
     unimplemented_io(address, value, "word write", 1);
   }
 }
 
 void io_write_long(unsigned int address, unsigned int value) {
-  if (logfh != NULL && (loglevel & LOG_IOACCESS) == LOG_IOACCESS) {
+  if (logfh != NULL && (loglevel & LOG_IOACCESS)) {
     unimplemented_io(address, value, "long write", 1);
   }
 }
@@ -404,7 +404,7 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
 
     fflush(stdout);
 
-    if (logfh != NULL && (loglevel & LOG_ILLINST) == LOG_ILLINST) {
+    if (logfh != NULL && (loglevel & LOG_ILLINST)) {
       fprintf(logfh, "illegal_instruction_handler, op %d\n", op);
     }
 
@@ -483,7 +483,7 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
 
 	fseek(ifs, d1 * 512, SEEK_SET);
 	gcount = fread(buf, 1, 512, ifs);
-	if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+	if (logfh != NULL && (loglevel & LOG_SDCARD)) {
 	  fprintf(logfh, "SD card read block %d\n", d1);
 	}
 
@@ -494,13 +494,13 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
 
 	  m68k_set_reg(M68K_REG_D0, 1);	// succeed
 	} else {
-	  if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+	  if (logfh != NULL && (loglevel & LOG_SDCARD)) {
 	    fprintf(logfh, "!!! Bad Read\n");
 	  }
 	  m68k_set_reg(M68K_REG_D0, 0);	// fail
 	}
       } else {
-	if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+	if (logfh != NULL && (loglevel & LOG_SDCARD)) {
 	  fprintf(logfh, "!!! Not init\n");
 	}
 	m68k_set_reg(M68K_REG_D0, 0);	// fail
@@ -518,20 +518,20 @@ int illegal_instruction_handler(int __attribute__((unused)) opcode) {
 	fseek(ifs, d1 * 512, SEEK_SET);
 	gcount = fwrite(buf, 1, 512, ifs);
 
-	if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+	if (logfh != NULL && (loglevel & LOG_SDCARD)) {
 	  fprintf(logfh, "SD card write block %d\n", d1);
 	}
 
 	if (gcount == 512) {
 	  m68k_set_reg(M68K_REG_D0, 1);	// succeed
 	} else {
-	  if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+	  if (logfh != NULL && (loglevel & LOG_SDCARD)) {
 	    fprintf(logfh, "!!! Bad Write\n");
 	  }
 	  m68k_set_reg(M68K_REG_D0, 0);	// fail
 	}
       } else {
-	if (logfh != NULL && (loglevel & LOG_SDCARD) == LOG_SDCARD) {
+	if (logfh != NULL && (loglevel & LOG_SDCARD)) {
 	  fprintf(logfh, "!!! Not init or out of bounds\n");
 	}
 	m68k_set_reg(M68K_REG_D0, 0);	// fail
@@ -802,7 +802,7 @@ uint32_t g_int_controller_highest_int = 0;	// Highest pending interrupt
 // Clear that interrupt level and set the PC to
 // the relevant interrupt vector.
 int cpu_irq_ack(int irq) {
-  if (logfh != NULL && (loglevel & LOG_INTACK) == LOG_INTACK) {
+  if (logfh != NULL && (loglevel & LOG_INTACK)) {
     fprintf(logfh, "cpu_irq_ack,     irq %d\n", irq);
   }
 
@@ -829,7 +829,7 @@ void int_controller_set(unsigned int value) {
   // Set the 2^value bit in the pending bit list
   g_int_controller_pending |= (1 << value);
 
-  if (logfh != NULL && (loglevel & LOG_INTACK) == LOG_INTACK) {
+  if (logfh != NULL && (loglevel & LOG_INTACK)) {
     fprintf(logfh, "int_controller_set   %d, pending 0x%x\n",
 	value, g_int_controller_pending);
   }
@@ -839,7 +839,7 @@ void int_controller_set(unsigned int value) {
   if (old_pending != g_int_controller_pending
       && value > g_int_controller_highest_int) {
     g_int_controller_highest_int = value;
-    if (logfh != NULL && (loglevel & LOG_INTACK) == LOG_INTACK) {
+    if (logfh != NULL && (loglevel & LOG_INTACK)) {
       fprintf(logfh, "Doing   m68k_set_irq(%d)\n", g_int_controller_highest_int);
     }
     m68k_set_irq(g_int_controller_highest_int);
@@ -851,7 +851,7 @@ void int_controller_clear(unsigned int value) {
   // Clear the 2^value bit in the bit list
   g_int_controller_pending &= ~(1 << value);
 
-  if (logfh != NULL && (loglevel & LOG_INTACK) == LOG_INTACK) {
+  if (logfh != NULL && (loglevel & LOG_INTACK)) {
     fprintf(logfh, "int_controller_clear %d, pending 0x%x\n",
 	value, g_int_controller_pending);
   }
@@ -862,7 +862,7 @@ void int_controller_clear(unsigned int value) {
     if (g_int_controller_pending & (1 << g_int_controller_highest_int))
       break;
 
-  if (logfh != NULL && (loglevel & LOG_INTACK) == LOG_INTACK) {
+  if (logfh != NULL && (loglevel & LOG_INTACK)) {
     fprintf(logfh, "Doing   m68k_set_irq(%d)\n", g_int_controller_highest_int);
   }
   // Set the current interrupt level to the highest, or 0 if none
