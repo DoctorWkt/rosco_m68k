@@ -32,6 +32,7 @@
 // List of known CH375 status
 #define USB_INT_SUCCESS		0x14
 #define USB_INT_CONNECT		0x15
+#define  USB_INT_DISCONNECT	0x16
 #define USB_INT_DISK_READ	0x1D
 #define USB_INT_DISK_WRITE	0x1E
 #define USB_INT_DISK_ERR	0x1F
@@ -139,16 +140,19 @@ uint8_t send_ch375_cmd(uint8_t cmd) {
   case DISK_INIT:
     // Try to open the filesystem image. Send an interrupt if successful
     if (ch375file == NULL) {
-      fprintf(stderr, "No USB file defined with -U\n"); exit(1);
+      fprintf(stderr, "No USB file defined with -U\n");
+      status = USB_INT_DISCONNECT;
+      return (1);
     }
     if ((disk = fopen(ch375file, "r+")) == NULL) {
       fprintf(stderr, "Unable to open USB file '%s' read-write\n", ch375file);
-      exit(1);
+      status = USB_INT_DISCONNECT;
+      return (1);
     }
-    status = USB_INT_SUCCESS;
     if (logfh != NULL && (loglevel & LOG_CH375)) {
       fprintf(logfh, "CH375 sending interrupt, status USB_INT_SUCCESS\n");
     }
+    status = USB_INT_SUCCESS;
     return (1);
   case GET_STATUS:
     // Clear the interrupt
