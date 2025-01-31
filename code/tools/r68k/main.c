@@ -319,6 +319,25 @@ void timer_interrupt() {
   set_timer();
 }
 
+// When we get a SIGUSR1, make the
+// execution loop fall into the monitor
+void catch_sigusr1() {
+  write_brkpt= 1;
+}
+
+
+// Attach catch_sigusr1() to SIGUSR1
+void attach_sigusr1() {
+  struct sigaction sa;
+
+  sa.sa_handler = catch_sigusr1;
+  sa.sa_flags = 0;
+  sigemptyset(&(sa.sa_mask));
+  if (sigaction(SIGUSR1, &sa, NULL) == -1) {
+    warn("Unable to attach a SIGUSR1 handler");
+  }
+}
+
 // Attach the timer_interrupt() to SIGALRM
 void attach_sigalrm() {
   struct sigaction sa;
@@ -429,9 +448,6 @@ int main(int argc, char *argv[]) {
       logfh = fopen(optarg, "w+");
       if (logfh == NULL)
 	errx(EXIT_FAILURE, "Unable to open %s\n", optarg);
-      // Set a default log level if not already set
-      if (loglevel == 0)
-	loglevel = LOG_INSTDECODE;
       atexit(close_logfile);
       break;
     case 'M':
@@ -517,9 +533,13 @@ int main(int argc, char *argv[]) {
     if (pc != -1)
       m68ki_cpu.pc = pc;
   }
+
   // Attach the routine that handles
   // the periodic timer interrupts
   attach_sigalrm();
+
+  // And also catch SIGUSR1
+  attach_sigusr1();
 
   // Start the timer running
   set_timer();
