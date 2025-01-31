@@ -399,22 +399,39 @@ void print_regs(FILE * fh) {
   fprintf(fh, "\n");
 }
 
+void print_loglevels(FILE *out) {
+  fprintf(out, "Available log levels (which can be OR'd) are:\n");
+  fprintf(out, "  $%x\tInstruction disassembly\n", LOG_INSTDECODE);
+  fprintf(out, "  $%x\tRegister dump\n", LOG_REGDUMP);
+  fprintf(out, "  $%x\tHardware I/O operations\n", LOG_IOACCESS);
+  fprintf(out, "  $%x\tSD Card operations\n", LOG_SDCARD);
+  fprintf(out, "  $%x\tSD Card data movements\n", LOG_SD_DATA);
+  fprintf(out, "  $%x\tCH375 operations\n", LOG_CH375);
+  fprintf(out, "  $%x\tCH375 data movements\n", LOG_CH375_DATA);
+  fprintf(out, "  $%x\tMemory accesses\n", LOG_MEMACCESS);
+  fprintf(out, "  $%x\tInvalid memory accesses\n", LOG_BUSERROR);
+  fprintf(out, "  $%x\tIllegal instructions\n", LOG_ILLINST);
+  fprintf(out, "  $%x\tInterrupt acknowledgements\n", LOG_INTACK);
+}
+
 void usage(char *name) {
   fprintf(stderr, "\nUsage: %s [flags] executable_file\n\n", name);
   fprintf(stderr, "Flags are:\n");
-  fprintf(stderr, "  -L logfile            Log debug info to this file\n");
+  fprintf(stderr, "  -L logfile            Log execution info to this file\n");
   fprintf(stderr, "  -M mapfile            Load symbols from a map file\n");
   fprintf(stderr, "  -R romfile            Use the file as the ROM image\n");
   fprintf(stderr, "  -S sdcardfile         Attach SD card image file\n");
   fprintf(stderr, "  -U USB_image          Attach USB image file\n");
   fprintf(stderr,
-	  "  -a addr               Load executable at dec/$hex addr\n");
+    "  -a addr               Load executable at dec/$hex addr\n");
   fprintf(stderr,
-	  "  -b addr [-b addr2]    Set breakpoint(s) at symbol or dec/$hex addr\n");
+    "  -b addr [-b addr2]    Set breakpoint(s) at symbol or dec/$hex addr\n");
   fprintf(stderr,
-	  "  -l value              Set dec/$hex bitmap of debug flags\n");
-  fprintf(stderr, "  -m                    Start in the monitor\n");
-  fprintf(stderr, "\nIf -R used, executable_file is optional.\n\n");
+    "  -l value              Set dec/$hex bitmap of log levels (default 0)\n");
+  fprintf(stderr, "  -m                    Start in the monitor\n\n");
+  fprintf(stderr, "If -R used, executable_file is optional.\n");
+  fprintf(stderr, "If %s receives a SIGUSR1, the monitor is started.\n\n", name);
+  print_loglevels(stderr); fprintf(stderr, "\n");
   exit(1);
 }
 

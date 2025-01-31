@@ -13,6 +13,7 @@
 #include "mapfile.h"
 #include "monitor.h"
 
+extern FILE *logfh;
 extern int loglevel;
 
 // Fill a buffer with the disassembly of the
@@ -353,14 +354,16 @@ static void monitor_usage() {
   printf("                            show list of breakpoints\n");
   printf("wb, wbrk <addr>           - set a write breakpoint at <addr>\n");
   printf
-    ("nb, nbrk [<addr>]         - remove breakpoint at <addr>, or all\n\n");
-  printf("l, loglevel [<num>]       - set or show the logging level\n");
+    ("nb, nbrk [<addr>]         - remove breakpoint at <addr>, or all\n");
+  printf("l, loglevel [<num>]       - set or show the logging level\n\n");
 
-  printf("Addresses and Values\n\n");
-  printf("Decimal literals start with [0-9], e.g. 23\n");
-  printf("Hexadecimal literals start with $, e.g. $1234\n");
-  printf("Symbols start with _ or [A-Za-z], e.g. _printf\n");
-  printf("Synbols + offset, e.g. _printf+23, _printf+$100\n\n");
+  print_loglevels(stdout);
+
+  printf("\nAddresses and Values\n");
+  printf("  Decimal literals start with [0-9], e.g. 23\n");
+  printf("  Hexadecimal literals start with $, e.g. $1234\n");
+  printf("  Symbols start with _ or [A-Za-z], e.g. _printf\n");
+  printf("  Synbols + offset, e.g. _printf+23, _printf+$100\n\n");
 }
 
 // Initialise the monitor variables
@@ -489,7 +492,9 @@ int monitor(int curpc) {
 
     case CMD_LOGLEVEL:
       if (arg_count != 2) {
-	printf("  Current logging level: %d, 0x%x\n", loglevel, loglevel);
+	printf("  Current logging level: %d, $%x\n", loglevel, loglevel);
+	if (logfh == NULL)
+	  printf("  but there is not open log file\n");
 	break;
       }
       val = parse_addr_msg(arg[1], NULL);

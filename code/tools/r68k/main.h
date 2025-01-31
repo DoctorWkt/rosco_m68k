@@ -29,3 +29,4 @@ void print_regs(FILE * fh);
 void attach_sigalrm(void);
 void detach_sigalrm(void);
 void set_timer(void);
+void print_loglevels(FILE *out);
