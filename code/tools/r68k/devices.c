@@ -79,6 +79,7 @@ char *sdfile = NULL;		// SD card file
 FILE *ifs = NULL;		// File handle for this
 extern FILE *logfh;
 extern int loglevel;
+extern char *ch375file;
 
 // Terminal handling functions
 struct termios originalTermios;
@@ -190,6 +191,8 @@ unsigned int io_read_byte(unsigned int address) {
 
     // CH375
   case CH375_DATADDR:
+    // If no file, return a bus error
+    if (ch375file==NULL) return(0);
     return (read_ch375_data());
 
     // SPI

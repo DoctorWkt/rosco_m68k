@@ -58,7 +58,9 @@ static uint32_t bufcnt = 0;
 static uint8_t maxcnt = 0;
 
 // Read a byte of data from the CH375 device.
-// If there is no data, abort the simulation.
+// If there is no data, return zero. The latter
+// can occur when Fuzix is probing for the
+// device's existence.
 uint8_t read_ch375_data(void) {
 
   uint8_t data;
@@ -73,11 +75,13 @@ uint8_t read_ch375_data(void) {
     return ((bufcnt > 64) ? 64 : (char) bufcnt);
   }
 
-  // No data, so abort
+  // No data, so return zero
   if (bufcnt <= 0) {
-    fprintf(stderr, "No CH375 data available to read after cmd 0x%x\n",
+    if (logfh != NULL && (loglevel & LOG_CH375_DATA)) {
+      fprintf(logfh, "No CH375 data available to read after cmd 0x%x\n",
 	    prevcmd);
-    exit(1);
+    }
+    return(0);
   }
 
   // Otherwise get the data, update the index and count, and return the data.

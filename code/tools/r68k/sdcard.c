@@ -321,8 +321,8 @@ void spi_latch_in(uint8_t m_in_latch) {
 static void do_command() {
   if (((m_cmd[0] & 0xc0) == 0x40) && (m_cmd[5] & 1)) {
     if (logfh != NULL && (loglevel & LOG_SDCARD)) {
-      fprintf(logfh, "SDCARD: cmd %02d 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
-	      m_cmd[0] & 0x3f, m_cmd[1], m_cmd[2],
+      fprintf(logfh, "SDCARD: cmd 0x%02x (was 0x%02x) 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
+	      m_cmd[0] & 0x3f, m_cmd[0], m_cmd[1], m_cmd[2],
 	      m_cmd[3], m_cmd[4], m_cmd[5]);
     }
 
