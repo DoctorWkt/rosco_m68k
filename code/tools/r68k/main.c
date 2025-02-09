@@ -601,6 +601,9 @@ int main(int argc, char *argv[]) {
     if (logfh != NULL && (loglevel & LOG_REGDUMP)) {
       print_regs(logfh);
     }
+
+    // Wait for an interrupt if the CPU is stopped
+    if (m68ki_cpu.stopped) pause();
   }
 
   if (logfh != NULL)
